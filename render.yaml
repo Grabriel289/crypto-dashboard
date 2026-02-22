@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: |
       # Build frontend
-      cd frontend && npm install && npx vite build && cd ..
+      cd frontend && npm install && node_modules/.bin/vite build && cd ..
       # Install Python dependencies
       pip install -r requirements.txt
     startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
