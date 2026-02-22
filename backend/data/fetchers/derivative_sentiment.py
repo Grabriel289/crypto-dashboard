@@ -224,32 +224,32 @@ class DerivativeSentimentFetcher:
         }
     
     def _get_fallback_data(self, symbol: str) -> Dict[str, Any]:
-        """Fallback data when API fails."""
+        """Fallback data when API fails - uses realistic market data."""
         fallbacks = {
             "BTCUSDT": {
                 "symbol": "BTC",
-                "open_interest": 5.58e9,
-                "oi_change_24h": -3.2,
-                "retail_long_percent": 52.3,
-                "top_trader_long_percent": 45.9,
+                "open_interest": 5362792767.0,  # $5.36B
+                "oi_change_24h": -3.9,
+                "retail_long_percent": 65.3,
+                "top_trader_long_percent": 55.7,
                 "taker_buy_percent": 58.2,
                 "price": 68000
             },
             "ETHUSDT": {
                 "symbol": "ETH",
-                "open_interest": 2.10e9,
-                "oi_change_24h": -1.8,
-                "retail_long_percent": 55.1,
-                "top_trader_long_percent": 48.8,
+                "open_interest": 3472657347.0,  # $3.47B
+                "oi_change_24h": -2.8,
+                "retail_long_percent": 72.3,
+                "top_trader_long_percent": 60.2,
                 "taker_buy_percent": 52.1,
                 "price": 1976
             },
             "SOLUSDT": {
                 "symbol": "SOL",
-                "open_interest": 0.85e9,
-                "oi_change_24h": 2.1,
-                "retail_long_percent": 61.2,
-                "top_trader_long_percent": 52.3,
+                "open_interest": 812269184.0,  # $812M
+                "oi_change_24h": -4.8,
+                "retail_long_percent": 71.8,
+                "top_trader_long_percent": 55.2,
                 "taker_buy_percent": 64.5,
                 "price": 140
             }
