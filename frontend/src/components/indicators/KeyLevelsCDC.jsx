@@ -5,6 +5,11 @@ function KeyLevelsCDC({ data }) {
   if (!data) return null;
 
   const { btc, eth } = data;
+  
+  // Check if using order block or fallback
+  const btcSource = btc?.levels?.source || 'fallback';
+  const ethSource = eth?.levels?.source || 'fallback';
+  const isOrderBlock = btcSource === 'orderblock' || ethSource === 'orderblock';
 
   const renderAssetCard = (asset) => {
     const { symbol, price, cdc_signal, levels, ath_distance } = asset;
@@ -30,27 +35,48 @@ function KeyLevelsCDC({ data }) {
           </div>
         </div>
 
-        {/* Key Levels */}
+        {/* Key Levels - Order Block Style */}
         <div className="space-y-2 mb-4">
+          {/* R2 */}
           <div className="flex items-center justify-between text-red-400">
-            <span>🔴 R2</span>
+            <div className="flex items-center gap-2">
+              <span>🔴</span>
+              <span className="font-semibold">R2</span>
+            </div>
             <span className="font-mono">${levels?.r2?.toLocaleString()}</span>
           </div>
+          
+          {/* R1 */}
           <div className="flex items-center justify-between text-red-400">
-            <span>🔴 R1</span>
+            <div className="flex items-center gap-2">
+              <span>🔴</span>
+              <span className="font-semibold">R1</span>
+            </div>
             <span className="font-mono">${levels?.r1?.toLocaleString()}</span>
           </div>
-          <div className="flex items-center justify-center py-2 border-y border-cyber-border-subtle">
-            <span className="text-cyber-accent-green font-mono font-bold">
+          
+          {/* Current Price Marker */}
+          <div className="flex items-center justify-center py-3 border-y-2 border-dashed border-cyber-border-subtle my-2">
+            <span className="text-cyber-accent-blue font-mono font-bold text-lg">
               ▶ ${price?.toLocaleString()} ◀
             </span>
           </div>
+          
+          {/* S1 */}
           <div className="flex items-center justify-between text-green-400">
-            <span>🟢 S1</span>
+            <div className="flex items-center gap-2">
+              <span>🟢</span>
+              <span className="font-semibold">S1</span>
+            </div>
             <span className="font-mono">${levels?.s1?.toLocaleString()}</span>
           </div>
+          
+          {/* S2 */}
           <div className="flex items-center justify-between text-green-400">
-            <span>🟢 S2</span>
+            <div className="flex items-center gap-2">
+              <span>🟢</span>
+              <span className="font-semibold">S2</span>
+            </div>
             <span className="font-mono">${levels?.s2?.toLocaleString()}</span>
           </div>
         </div>
@@ -78,6 +104,13 @@ function KeyLevelsCDC({ data }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {btc && renderAssetCard(btc)}
         {eth && renderAssetCard(eth)}
+      </div>
+      
+      {/* Footnote */}
+      <div className="mt-6 pt-4 border-t border-cyber-border-subtle text-center">
+        <p className="text-xs text-cyber-text-muted">
+          ℹ️ S/R levels based on {isOrderBlock ? 'Order Block detection (Smart Money Concept)' : 'technical analysis'}
+        </p>
       </div>
     </section>
   );
