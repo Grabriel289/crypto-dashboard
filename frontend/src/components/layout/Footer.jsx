@@ -10,6 +10,9 @@ function Footer() {
           <p className="text-xs mt-1">
             Data sources: FRED, Binance, OKX, Alternative.me
           </p>
+          <p className="text-xs mt-1 text-cyber-accent-blue">
+            Built by <a href="https://github.com/0xAobby28" target="_blank" rel="noopener noreferrer" className="hover:underline">0xAobby28</a>
+          </p>
         </div>
         
         <div className="flex items-center gap-6">
