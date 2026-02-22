@@ -80,14 +80,14 @@ function DerivativeSentiment({ data }) {
 
       {/* Positioning Table */}
       <div className="mb-6">
-        <div className="text-xs text-cyber-text-muted uppercase tracking-wider mb-3">Positioning</div>
+        <div className="text-xs text-cyber-text-muted uppercase tracking-wider mb-3">Positioning (1h)</div>
         <div className="bg-cyber-surface rounded-lg overflow-hidden">
           {/* Header */}
           <div className="grid grid-cols-4 gap-2 p-3 bg-cyber-bg-primary text-xs text-cyber-text-muted uppercase">
             <div></div>
-            <div>Retail L/S</div>
-            <div>Top Traders</div>
-            <div className="hidden sm:block">Taker Buy/Sell</div>
+            <div title="All accounts Long/Short ratio (1h)">Retail L/S</div>
+            <div title="Top traders by position value (1h)">Top Traders</div>
+            <div className="hidden sm:block" title="Taker buy volume ratio (1h)">Taker Buy/Sell</div>
           </div>
           
           {/* Rows */}
@@ -130,6 +130,13 @@ function DerivativeSentiment({ data }) {
           </div>
         </div>
       )}
+      
+      {/* Timeframe Footnote */}
+      <div className="mt-4 pt-4 border-t border-cyber-border-subtle">
+        <p className="text-xs text-cyber-text-muted text-center">
+          ℹ️ OI: 24h change | Positioning: 1h ratio | Updated every 5 min
+        </p>
+      </div>
     </section>
   );
 }
