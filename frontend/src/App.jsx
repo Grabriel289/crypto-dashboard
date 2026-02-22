@@ -7,6 +7,11 @@ import CryptoPulse from './components/crypto/CryptoPulse'
 import SectorRotation from './components/sectors/SectorRotation'
 import ActionItems from './components/actions/ActionItems'
 import ConflictingSignals from './components/alerts/ConflictingSignals'
+import KeyLevelsCDC from './components/indicators/KeyLevelsCDC'
+import LiquidationHeatmap from './components/indicators/LiquidationHeatmap'
+import StablecoinFlow from './components/indicators/StablecoinFlow'
+import EconomicCalendar from './components/indicators/EconomicCalendar'
+import CorrelationMatrix from './components/indicators/CorrelationMatrix'
 import Footer from './components/layout/Footer'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -93,23 +98,48 @@ function App() {
             </section>
           )}
           
-          {/* Section 1: Macro Tide */}
+          {/* Section: Key Levels & CDC Signal */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
+            <KeyLevelsCDC data={data?.key_levels} />
+          </section>
+          
+          {/* Section: Liquidation Heatmap */}
           <section className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <LiquidationHeatmap data={data?.liquidation} />
+          </section>
+          
+          {/* Section: Stablecoin Flow */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
+            <StablecoinFlow data={data?.stablecoin} />
+          </section>
+          
+          {/* Section: Economic Calendar */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <EconomicCalendar data={data?.calendar} />
+          </section>
+          
+          {/* Section: Correlation Matrix & PAXG/BTC */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
+            <CorrelationMatrix data={data?.correlation} />
+          </section>
+          
+          {/* Section 1: Macro Tide */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <MacroTide data={data?.macro} />
           </section>
           
           {/* Section 2: Crypto Pulse */}
-          <section className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+          <section className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
             <CryptoPulse data={data?.crypto_pulse} />
           </section>
           
           {/* Section 3: Sector Rotation */}
-          <section className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+          <section className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
             <SectorRotation data={data?.sectors} />
           </section>
           
           {/* Section 4: Action Items */}
-          <section className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
+          <section className="animate-fade-in" style={{ animationDelay: '0.45s' }}>
             <ActionItems data={data?.actions} summary={data?.macro} />
           </section>
         </main>

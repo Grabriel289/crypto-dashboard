@@ -14,6 +14,11 @@ from analysis.action_generator import generate_action_items
 from analysis.conflict_detector import detect_conflicting_signals
 from data.fetchers.fear_greed import fear_greed_fetcher
 from data.fetchers.binance import binance_fetcher
+from data.fetchers.cdc_levels import cdc_fetcher
+from data.fetchers.liquidation import liquidation_fetcher
+from data.fetchers.stablecoin import stablecoin_fetcher
+from data.fetchers.economic_calendar import calendar_fetcher
+from data.fetchers.correlation import correlation_fetcher
 from data.aggregator import data_aggregator
 from config.sectors import SECTORS
 
@@ -225,15 +230,74 @@ async def get_action_items() -> Dict[str, Any]:
     }
 
 
+@router.get("/key-levels")
+async def get_key_levels() -> Dict[str, Any]:
+    """Get Key Levels & CDC Signal for BTC and ETH."""
+    btc_data = await cdc_fetcher.get_cdc_data("BTCUSDT")
+    eth_data = await cdc_fetcher.get_cdc_data("ETHUSDT")
+    return {
+        "btc": btc_data,
+        "eth": eth_data,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@router.get("/liquidation-heatmap")
+async def get_liquidation_heatmap() -> Dict[str, Any]:
+    """Get BTC Liquidation Heatmap."""
+    heatmap = await liquidation_fetcher.get_heatmap()
+    return {
+        "heatmap": heatmap,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@router.get("/stablecoin-flow")
+async def get_stablecoin_flow() -> Dict[str, Any]:
+    """Get Stablecoin Flow Monitor data."""
+    data = await stablecoin_fetcher.get_flow_data()
+    return {
+        **data,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@router.get("/economic-calendar")
+async def get_economic_calendar() -> Dict[str, Any]:
+    """Get Economic Calendar (next 7 days)."""
+    data = await calendar_fetcher.get_calendar()
+    return {
+        **data,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@router.get("/correlation-matrix")
+async def get_correlation_matrix() -> Dict[str, Any]:
+    """Get Correlation Matrix & PAXG/BTC data."""
+    correlations = await correlation_fetcher.get_correlations()
+    paxg_btc = await correlation_fetcher.get_paxg_btc()
+    return {
+        "correlations": correlations,
+        "paxg_btc": paxg_btc,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
 @router.get("/full")
 async def get_full_dashboard() -> Dict[str, Any]:
-    """Get complete dashboard data."""
+    """Get complete dashboard data including new indicators."""
     # Fetch all data concurrently
-    macro, prices, pulse, sectors = await asyncio.gather(
+    macro, prices, pulse, sectors, key_levels, liquidation, stablecoin, calendar, correlation = await asyncio.gather(
         macro_tide_scorer.calculate_full_score(),
         get_market_prices(),
         get_crypto_pulse(),
-        get_sector_data()
+        get_sector_data(),
+        get_key_levels(),
+        get_liquidation_heatmap(),
+        get_stablecoin_flow(),
+        get_economic_calendar(),
+        get_correlation_matrix()
     )
     
     # Generate actions
@@ -267,5 +331,10 @@ async def get_full_dashboard() -> Dict[str, Any]:
         "sectors": sectors,
         "actions": actions,
         "conflicts": conflicts,
+        "key_levels": key_levels,
+        "liquidation": liquidation,
+        "stablecoin": stablecoin,
+        "calendar": calendar,
+        "correlation": correlation,
         "last_updated": datetime.now().isoformat()
     }
