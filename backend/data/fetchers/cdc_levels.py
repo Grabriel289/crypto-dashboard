@@ -1,6 +1,7 @@
 """CDC Signal and Order Block Level fetcher."""
 import aiohttp
 from typing import Dict, Any, List, Optional
+import asyncio
 
 
 class CDCFetcher:
@@ -64,8 +65,8 @@ class CDCFetcher:
     def detect_order_blocks(self, candles: List[Dict]) -> Dict[str, Any]:
         """
         Detect Order Blocks (Smart Money Concept):
-        - Bullish OB = Last RED candle before significant UP move → SUPPORT
-        - Bearish OB = Last GREEN candle before significant DOWN move → RESISTANCE
+        - Bullish OB = Last RED candle before significant UP move -> SUPPORT
+        - Bearish OB = Last GREEN candle before significant DOWN move -> RESISTANCE
         """
         if len(candles) < 10:
             return {"supports": [], "resistances": []}
@@ -258,5 +259,4 @@ class CDCFetcher:
 
 
 # Global instance
-import asyncio
 cdc_fetcher = CDCFetcher()
