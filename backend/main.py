@@ -10,11 +10,9 @@ import asyncio
 from config.settings import settings
 from api.routes import dashboard
 from data.scheduler import data_scheduler, data_cache
-import os
 
-# Force port change to avoid conflict
-os.environ['API_PORT'] = '8001'
-settings.API_PORT = 8001
+# Use Render's PORT env var or default to 8001 locally
+settings.API_PORT = int(os.environ.get('PORT', os.environ.get('API_PORT', 8001)))
 
 
 @asynccontextmanager
@@ -41,10 +39,10 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS middleware
+# CORS middleware - allow all origins for now
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,10 +58,8 @@ async def health_check():
     return {"status": "healthy", "version": "2.0.0"}
 
 
-# Serve static files (frontend build)
+# Serve static files (frontend build) - must be AFTER API routes
 frontend_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-if os.path.exists(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
 
 
 @app.get("/")
@@ -73,6 +69,11 @@ async def root():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {"message": "Crypto Dashboard API - Visit /docs for API documentation"}
+
+
+# Mount static files last - this catches all unmatched routes
+if os.path.exists(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="static")
 
 
 if __name__ == "__main__":
