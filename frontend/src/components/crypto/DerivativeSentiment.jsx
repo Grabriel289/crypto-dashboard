@@ -55,6 +55,7 @@ function DerivativeSentiment({ data }) {
             );
             const isPositive = coin.oi_change_24h >= 0;
             const hasData = coin.open_interest > 0;
+            const isFallback = coin.is_fallback === true;
             
             return (
               <div key={symbol} className="bg-cyber-surface rounded-lg p-4 text-center">
@@ -68,6 +69,9 @@ function DerivativeSentiment({ data }) {
                       {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
                       {isPositive ? '+' : ''}{coin.oi_change_24h.toFixed(1)}% (24h)
                     </div>
+                    {isFallback && (
+                      <div className="text-xs text-yellow-400 mt-1">(Fallback)</div>
+                    )}
                   </>
                 ) : (
                   <div className="text-yellow-400 text-sm">API Error - Refresh</div>

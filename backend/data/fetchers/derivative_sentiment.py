@@ -183,6 +183,15 @@ class DerivativeSentimentFetcher:
                 # Calculate OI in USD
                 oi_value_usd = float(oi.get("openInterest", 0)) * price
                 
+                # Check if we got valid data
+                has_valid_oi = oi_value_usd > 0 and price > 0
+                has_valid_ls = retail_ls.get("longAccount") is not None
+                
+                if not has_valid_oi or not has_valid_ls:
+                    print(f"Using fallback for {symbol}: OI={oi_value_usd}, Price={price}, LS={has_valid_ls}")
+                    results[symbol] = self._get_fallback_data(symbol)
+                    continue
+                
                 # Calculate 24h OI change
                 oi_change_24h = 0
                 if len(oi_history) >= 2:
@@ -233,7 +242,8 @@ class DerivativeSentimentFetcher:
                 "retail_long_percent": 65.3,
                 "top_trader_long_percent": 55.7,
                 "taker_buy_percent": 58.2,
-                "price": 68000
+                "price": 68000,
+                "is_fallback": True
             },
             "ETHUSDT": {
                 "symbol": "ETH",
@@ -242,7 +252,8 @@ class DerivativeSentimentFetcher:
                 "retail_long_percent": 72.3,
                 "top_trader_long_percent": 60.2,
                 "taker_buy_percent": 52.1,
-                "price": 1976
+                "price": 1976,
+                "is_fallback": True
             },
             "SOLUSDT": {
                 "symbol": "SOL",
@@ -251,7 +262,8 @@ class DerivativeSentimentFetcher:
                 "retail_long_percent": 71.8,
                 "top_trader_long_percent": 55.2,
                 "taker_buy_percent": 64.5,
-                "price": 140
+                "price": 140,
+                "is_fallback": True
             }
         }
         return fallbacks.get(symbol, fallbacks["BTCUSDT"])
