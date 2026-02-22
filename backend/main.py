@@ -34,8 +34,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Crypto Market Dashboard API",
-    description="Real-time crypto market monitoring with macro analysis and sector rotation",
-    version="2.0.0",
+    description="Real-time crypto market monitoring with macro analysis and sector rotation - v2.1 with Final Verdict",
+    version="2.1.0",
     lifespan=lifespan
 )
 
@@ -55,7 +55,7 @@ app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
-    return {"status": "healthy", "version": "2.0.0"}
+    return {"status": "healthy", "version": "2.1.0", "features": ["macro", "crypto_pulse", "sectors", "key_levels", "liquidation", "stablecoin", "calendar", "correlation", "final_verdict"]}
 
 
 # Serve static files (frontend build) - must be AFTER API routes
