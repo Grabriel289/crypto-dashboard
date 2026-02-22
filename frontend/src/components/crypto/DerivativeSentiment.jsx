@@ -2,9 +2,16 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 
 function DerivativeSentiment({ data }) {
-  if (!data) return null;
+  if (!data) return (
+    <section className="bg-cyber-bg-secondary rounded-xl border border-cyber-border-subtle p-6">
+      <div className="text-center text-cyber-text-muted">Loading derivative data...</div>
+    </section>
+  );
 
   const { coins, signal } = data;
+  
+  // Debug: log data to console
+  console.log('Derivative Sentiment Data:', data);
   const symbols = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
 
   const formatBillions = (value) => {
@@ -40,19 +47,31 @@ function DerivativeSentiment({ data }) {
         <div className="grid grid-cols-3 gap-4">
           {symbols.map(symbol => {
             const coin = coins?.[symbol];
-            if (!coin) return null;
+            if (!coin) return (
+              <div key={symbol} className="bg-cyber-surface rounded-lg p-4 text-center">
+                <div className="text-cyber-text-muted">{symbol.replace('USDT', '')}</div>
+                <div className="text-red-400 text-sm">No data</div>
+              </div>
+            );
             const isPositive = coin.oi_change_24h >= 0;
+            const hasData = coin.open_interest > 0;
             
             return (
               <div key={symbol} className="bg-cyber-surface rounded-lg p-4 text-center">
                 <div className="font-semibold text-white mb-1">{coin.symbol}</div>
-                <div className="text-xl font-bold text-white font-mono">
-                  ${formatBillions(coin.open_interest)}
-                </div>
-                <div className={`text-sm flex items-center justify-center gap-1 mt-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
-                  {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                  {isPositive ? '+' : ''}{coin.oi_change_24h.toFixed(1)}% (24h)
-                </div>
+                {hasData ? (
+                  <>
+                    <div className="text-xl font-bold text-white font-mono">
+                      ${formatBillions(coin.open_interest)}
+                    </div>
+                    <div className={`text-sm flex items-center justify-center gap-1 mt-1 ${isPositive ? 'text-green-400' : 'text-red-400'}`}>
+                      {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                      {isPositive ? '+' : ''}{coin.oi_change_24h.toFixed(1)}% (24h)
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-yellow-400 text-sm">API Error - Refresh</div>
+                )}
               </div>
             );
           })}
