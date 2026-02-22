@@ -1,13 +1,13 @@
 import React from 'react'
-import { Activity, Heart, TrendingUp, Anchor, DollarSign } from 'lucide-react'
+import { Activity, Heart } from 'lucide-react'
 import FragilityCard from './FragilityCard'
 import FundingCard from './FundingCard'
-import WhaleCard from './WhaleCard'
+import DerivativeSentiment from './DerivativeSentiment'
 
 function CryptoPulse({ data }) {
   if (!data) return null
 
-  const { fear_greed, fragility, funding, whale } = data
+  const { fear_greed, fragility, funding, derivative_sentiment } = data
 
   const getFearGreedColor = (value) => {
     if (value <= 10) return 'text-cyber-accent-red'
@@ -32,7 +32,8 @@ function CryptoPulse({ data }) {
         <h2 className="text-xl font-bold text-white">═══════════════════════ SECTION 2: CRYPTO PULSE ═══════════════════════</h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* First Row: Fear & Greed, Fragility, Funding */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         {/* Fear & Greed */}
         <div className="dashboard-card">
           <div className="flex items-center gap-2 mb-4">
@@ -75,10 +76,10 @@ function CryptoPulse({ data }) {
 
         {/* Funding Rates */}
         <FundingCard data={funding} />
-
-        {/* Whale Activity */}
-        <WhaleCard data={whale} />
       </div>
+
+      {/* Second Row: Derivative Sentiment (full width) */}
+      <DerivativeSentiment data={derivative_sentiment} />
     </div>
   )
 }

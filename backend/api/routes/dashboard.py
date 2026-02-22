@@ -20,6 +20,7 @@ from data.fetchers.liquidation import liquidation_fetcher
 from data.fetchers.stablecoin import stablecoin_fetcher
 from data.fetchers.economic_calendar import calendar_fetcher
 from data.fetchers.correlation import correlation_fetcher
+from data.fetchers.derivative_sentiment import derivative_sentiment_fetcher
 from data.aggregator import data_aggregator
 from config.sectors import SECTORS
 
@@ -60,7 +61,7 @@ async def get_market_prices() -> Dict[str, Any]:
 
 @router.get("/crypto-pulse")
 async def get_crypto_pulse() -> Dict[str, Any]:
-    """Get crypto pulse data (Fear & Greed, Fragility, Funding, Whale)."""
+    """Get crypto pulse data (Fear & Greed, Fragility, Funding, Derivative Sentiment)."""
     # Fetch Fear & Greed
     fear_greed = await fear_greed_fetcher.fetch()
     
@@ -82,9 +83,8 @@ async def get_crypto_pulse() -> Dict[str, Any]:
         exchange_flow_pct=0
     )
     
-    # Whale activity (simplified)
-    whale = WhaleActivity(total_oi_usd=5.5e9, oi_change_24h_pct=-3.2, exchange_inflow_pct=15)
-    whale_signal = whale.get_positioning_signal()
+    # Fetch Derivative Sentiment (real data from Binance Futures)
+    derivative_sentiment = await derivative_sentiment_fetcher.get_sentiment()
     
     return {
         "fear_greed": fear_greed,
@@ -93,12 +93,7 @@ async def get_crypto_pulse() -> Dict[str, Any]:
             "rates": funding_data,
             "aggregate": funding_aggregate
         },
-        "whale": {
-            "total_oi": whale.total_oi_usd,
-            "oi_change_24h": whale.oi_change_24h_pct,
-            "exchange_flow": whale.exchange_inflow_pct,
-            **whale_signal
-        },
+        "derivative_sentiment": derivative_sentiment,
         "timestamp": datetime.now().isoformat()
     }
 
