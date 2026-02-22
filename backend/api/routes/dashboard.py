@@ -12,6 +12,7 @@ from scoring.whale import WhaleActivity
 from scoring.sector_rotation import calculate_sector_momentum, generate_sector_verdict
 from analysis.action_generator import generate_action_items
 from analysis.conflict_detector import detect_conflicting_signals
+from analysis.final_verdict import generate_final_verdict
 from data.fetchers.fear_greed import fear_greed_fetcher
 from data.fetchers.binance import binance_fetcher
 from data.fetchers.cdc_levels import cdc_fetcher
@@ -218,6 +219,15 @@ async def get_action_items() -> Dict[str, Any]:
         sector_verdict=sectors.get("verdict", {}).get("verdict", "")
     )
     
+    # Generate final verdict
+    final_verdict = generate_final_verdict({
+        "macro": macro,
+        "key_levels": key_levels,
+        "crypto_pulse": pulse,
+        "sectors": sectors,
+        "calendar": calendar
+    })
+    
     return {
         "actions": actions,
         "conflicts": conflicts,
@@ -336,5 +346,6 @@ async def get_full_dashboard() -> Dict[str, Any]:
         "stablecoin": stablecoin,
         "calendar": calendar,
         "correlation": correlation,
+        "final_verdict": final_verdict,
         "last_updated": datetime.now().isoformat()
     }

@@ -6,6 +6,7 @@ import MarketPrices from './components/crypto/MarketPrices'
 import CryptoPulse from './components/crypto/CryptoPulse'
 import SectorRotation from './components/sectors/SectorRotation'
 import ActionItems from './components/actions/ActionItems'
+import FinalVerdict from './components/actions/FinalVerdict'
 import ConflictingSignals from './components/alerts/ConflictingSignals'
 import KeyLevelsCDC from './components/indicators/KeyLevelsCDC'
 import LiquidationHeatmap from './components/indicators/LiquidationHeatmap'
@@ -141,6 +142,11 @@ function App() {
           {/* Section 4: Action Items */}
           <section className="animate-fade-in" style={{ animationDelay: '0.45s' }}>
             <ActionItems data={data?.actions} summary={data?.macro} />
+          </section>
+          
+          {/* Section 5: Final Verdict */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.5s' }}>
+            <FinalVerdict data={data?.final_verdict} />
           </section>
         </main>
         
