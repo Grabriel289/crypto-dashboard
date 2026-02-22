@@ -8,7 +8,7 @@ import os
 import asyncio
 
 from config.settings import settings
-from api.routes import dashboard, indicators
+from api.routes import dashboard
 from data.scheduler import data_scheduler, data_cache
 
 # Use Render's PORT env var or default to 8001 locally
@@ -50,7 +50,6 @@ app.add_middleware(
 
 # API routes
 app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
-app.include_router(indicators.router, prefix="/api/indicators", tags=["indicators"])
 
 
 @app.get("/api/health")
