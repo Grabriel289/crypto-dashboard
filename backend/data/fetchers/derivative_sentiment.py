@@ -1,7 +1,10 @@
-"""Derivative Sentiment fetcher using Binance Futures API."""
+"""Derivative Sentiment fetcher using CoinGlass scraper + Binance Futures API."""
 import aiohttp
 from typing import Dict, Any, List
 import asyncio
+import os
+import json
+from datetime import datetime, timedelta
 
 
 class DerivativeSentimentFetcher:
@@ -162,66 +165,103 @@ class DerivativeSentimentFetcher:
                 "description": "No clear derivative sentiment bias"
             }
     
+    def load_coinglass_cache(self) -> Dict[str, Any]:
+        """Load data from CoinGlass scraper cache."""
+        try:
+            # Try to load from coinglass cache
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            cache_file = os.path.join(current_dir, "..", "coinglass_cache.json")
+            
+            if not os.path.exists(cache_file):
+                return {}
+            
+            with open(cache_file, 'r') as f:
+                cache = json.load(f)
+            
+            # Check if cache is fresh (< 24h)
+            scraped_at = datetime.fromisoformat(cache.get("scraped_at", "2000-01-01"))
+            age = datetime.now() - scraped_at
+            
+            if age < timedelta(hours=24):
+                print(f"✅ Using CoinGlass cache from {scraped_at.strftime('%Y-%m-%d %H:%M')}")
+                return cache.get("coins", {})
+            else:
+                print(f"⏰ CoinGlass cache expired ({age.total_seconds()/3600:.1f}h old)")
+                return {}
+                
+        except Exception as e:
+            print(f"❌ Error loading CoinGlass cache: {e}")
+            return {}
+    
     async def get_sentiment(self) -> Dict[str, Any]:
-        """Get complete derivative sentiment for all coins."""
+        """Get derivative sentiment - tries CoinGlass cache first, then Binance API."""
         results = {}
         
-        for symbol in self.SYMBOLS:
-            try:
-                # Fetch all data concurrently
-                oi, oi_history, retail_ls, top_ls, taker = await asyncio.gather(
-                    self.fetch_open_interest(symbol),
-                    self.fetch_oi_history(symbol),
-                    self.fetch_retail_long_short(symbol),
-                    self.fetch_top_trader_long_short(symbol),
-                    self.fetch_taker_buy_sell(symbol)
-                )
-                
-                # Fetch price for OI calculation
-                price = await self.fetch_price(symbol)
-                
-                # Calculate OI in USD
-                oi_value_usd = float(oi.get("openInterest", 0)) * price
-                
-                # Check if we got valid data
-                has_valid_oi = oi_value_usd > 0 and price > 0
-                has_valid_ls = retail_ls.get("longAccount") is not None
-                
-                if not has_valid_oi or not has_valid_ls:
-                    print(f"Using fallback for {symbol}: OI={oi_value_usd}, Price={price}, LS={has_valid_ls}")
+        # First, try to load from CoinGlass scraper cache
+        coinglass_data = self.load_coinglass_cache()
+        
+        if coinglass_data:
+            print("📊 Using CoinGlass scraped data")
+            results = coinglass_data
+        else:
+            print("🔍 No CoinGlass cache. Trying Binance API...")
+            
+            for symbol in self.SYMBOLS:
+                try:
+                    # Fetch all data concurrently
+                    oi, oi_history, retail_ls, top_ls, taker = await asyncio.gather(
+                        self.fetch_open_interest(symbol),
+                        self.fetch_oi_history(symbol),
+                        self.fetch_retail_long_short(symbol),
+                        self.fetch_top_trader_long_short(symbol),
+                        self.fetch_taker_buy_sell(symbol)
+                    )
+                    
+                    # Fetch price for OI calculation
+                    price = await self.fetch_price(symbol)
+                    
+                    # Calculate OI in USD
+                    oi_value_usd = float(oi.get("openInterest", 0)) * price
+                    
+                    # Check if we got valid data
+                    has_valid_oi = oi_value_usd > 0 and price > 0
+                    has_valid_ls = retail_ls.get("longAccount") is not None
+                    
+                    if not has_valid_oi or not has_valid_ls:
+                        print(f"Using fallback for {symbol}")
+                        results[symbol] = self._get_fallback_data(symbol)
+                        continue
+                    
+                    # Calculate 24h OI change
+                    oi_change_24h = 0
+                    if len(oi_history) >= 2:
+                        oi_now = float(oi_history[-1].get("sumOpenInterestValue", 0))
+                        oi_24h_ago = float(oi_history[0].get("sumOpenInterestValue", 0))
+                        if oi_24h_ago > 0:
+                            oi_change_24h = ((oi_now - oi_24h_ago) / oi_24h_ago) * 100
+                    
+                    # Parse Long/Short ratios
+                    retail_long = float(retail_ls.get("longAccount", 0.5)) * 100
+                    top_trader_long = float(top_ls.get("longAccount", 0.5)) * 100
+                    
+                    # Parse Taker Buy/Sell
+                    taker_ratio = float(taker.get("buySellRatio", 1.0))
+                    taker_buy_percent = (taker_ratio / (taker_ratio + 1)) * 100
+                    
+                    results[symbol] = {
+                        "symbol": symbol.replace("USDT", ""),
+                        "open_interest": oi_value_usd,
+                        "oi_change_24h": oi_change_24h,
+                        "retail_long_percent": retail_long,
+                        "top_trader_long_percent": top_trader_long,
+                        "taker_buy_percent": taker_buy_percent,
+                        "price": price,
+                        "source": "binance_api"
+                    }
+                    
+                except Exception as e:
+                    print(f"Error fetching {symbol}: {e}")
                     results[symbol] = self._get_fallback_data(symbol)
-                    continue
-                
-                # Calculate 24h OI change
-                oi_change_24h = 0
-                if len(oi_history) >= 2:
-                    oi_now = float(oi_history[-1].get("sumOpenInterestValue", 0))
-                    oi_24h_ago = float(oi_history[0].get("sumOpenInterestValue", 0))
-                    if oi_24h_ago > 0:
-                        oi_change_24h = ((oi_now - oi_24h_ago) / oi_24h_ago) * 100
-                
-                # Parse Long/Short ratios
-                retail_long = float(retail_ls.get("longAccount", 0.5)) * 100
-                top_trader_long = float(top_ls.get("longAccount", 0.5)) * 100
-                
-                # Parse Taker Buy/Sell
-                taker_ratio = float(taker.get("buySellRatio", 1.0))
-                taker_buy_percent = (taker_ratio / (taker_ratio + 1)) * 100
-                
-                results[symbol] = {
-                    "symbol": symbol.replace("USDT", ""),
-                    "open_interest": oi_value_usd,
-                    "oi_change_24h": oi_change_24h,
-                    "retail_long_percent": retail_long,
-                    "top_trader_long_percent": top_trader_long,
-                    "taker_buy_percent": taker_buy_percent,
-                    "price": price
-                }
-                
-            except Exception as e:
-                print(f"Error fetching {symbol}: {e}")
-                # Use fallback data
-                results[symbol] = self._get_fallback_data(symbol)
         
         # Generate signal
         signal = self.generate_signal(results)
