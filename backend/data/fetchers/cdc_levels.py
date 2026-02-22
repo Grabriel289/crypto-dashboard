@@ -221,12 +221,19 @@ class CDCFetcher:
         # Calculate levels from OBs
         levels_data = self.calculate_ob_levels(obs, current_price, symbol)
         
-        # Format levels for display
+        # Format levels for display - safely access price
+        def get_price(level_data, fallback_price):
+            if level_data is None:
+                return fallback_price
+            if isinstance(level_data, dict):
+                return int(level_data.get("price", fallback_price))
+            return int(fallback_price)
+        
         levels = {
-            "r2": int(levels_data["R2"]["price"]) if levels_data["R2"] else int(current_price * 1.06),
-            "r1": int(levels_data["R1"]["price"]) if levels_data["R1"] else int(current_price * 1.03),
-            "s1": int(levels_data["S1"]["price"]) if levels_data["S1"] else int(current_price * 0.97),
-            "s2": int(levels_data["S2"]["price"]) if levels_data["S2"] else int(current_price * 0.94),
+            "r2": get_price(levels_data.get("R2"), int(current_price * 1.06)),
+            "r1": get_price(levels_data.get("R1"), int(current_price * 1.03)),
+            "s1": get_price(levels_data.get("S1"), int(current_price * 0.97)),
+            "s2": get_price(levels_data.get("S2"), int(current_price * 0.94)),
             "source": "orderblock" if not levels_data.get("isFallback", False) else "fallback"
         }
         
