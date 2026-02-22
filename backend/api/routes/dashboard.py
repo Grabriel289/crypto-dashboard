@@ -334,6 +334,15 @@ async def get_full_dashboard() -> Dict[str, Any]:
         sector_verdict=sectors.get("verdict", {}).get("verdict", "")
     )
     
+    # Generate final verdict
+    final_verdict = generate_final_verdict({
+        "macro": macro,
+        "key_levels": key_levels,
+        "crypto_pulse": pulse,
+        "sectors": sectors,
+        "calendar": calendar
+    })
+    
     return {
         "macro": macro,
         "market_prices": prices,
