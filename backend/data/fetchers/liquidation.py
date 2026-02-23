@@ -25,6 +25,24 @@ class LiquidationFetcher:
         if self.session and not self.session.closed:
             await self.session.close()
     
+    async def _fetch_price(self, symbol: str = "BTCUSDT", futures: bool = True) -> Optional[float]:
+        """Fetch current price from Binance."""
+        try:
+            session = await self._get_session()
+            if futures:
+                url = f"{self.BINANCE_FUTURES}/fapi/v1/ticker/price"
+            else:
+                url = f"{self.BINANCE_SPOT}/api/v3/ticker/price"
+            
+            async with session.get(url, params={"symbol": symbol}, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return float(data["price"])
+                return None
+        except Exception as e:
+            print(f"Error fetching price for {symbol}: {e}")
+            return None
+    
     async def fetch_open_interest(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, Any]]:
         """Fetch open interest from Binance Futures."""
         try:

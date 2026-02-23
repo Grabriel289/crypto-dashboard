@@ -62,6 +62,8 @@ async def get_market_prices() -> Dict[str, Any]:
 @router.get("/crypto-pulse")
 async def get_crypto_pulse() -> Dict[str, Any]:
     """Get crypto pulse data (Fear & Greed, Fragility, Funding, Derivative Sentiment)."""
+    from scoring.fragility import calculate_fragility_score, calculate_depth_2pct
+    
     # Fetch Fear & Greed
     fear_greed = await fear_greed_fetcher.fetch()
     
@@ -75,13 +77,57 @@ async def get_crypto_pulse() -> Dict[str, Any]:
     
     funding_aggregate = aggregate_funding_signals(funding_data)
     
-    # Calculate fragility (simplified)
-    fragility = calculate_fragility(
-        vol_percentile=45,
-        drawdown_pct=-15,
-        funding_rate=funding_data.get("BTC", {}).get("rate", 0),
-        exchange_flow_pct=0
-    )
+    # Calculate NEW fragility score (Φ) with real market data for BTC
+    try:
+        # Fetch BTC market data for fragility calculation
+        btc_symbol = "BTCUSDT"
+        
+        # Get OI, prices, funding, depth concurrently
+        oi_data, perp_price, spot_price, funding_hist, depth = await asyncio.gather(
+            liquidation_fetcher.fetch_open_interest(btc_symbol),
+            liquidation_fetcher._fetch_price(btc_symbol, futures=True),
+            liquidation_fetcher._fetch_price(btc_symbol, futures=False),
+            liquidation_fetcher.fetch_funding_history(btc_symbol, limit=21),
+            liquidation_fetcher.fetch_orderbook_depth(btc_symbol, limit=1000)
+        )
+        
+        # Get current funding rate
+        funding_data_btc = await liquidation_fetcher.fetch_funding_rate(btc_symbol)
+        current_funding = funding_data_btc["lastFundingRate"] if funding_data_btc else 0
+        
+        # Calculate fragility components
+        if oi_data and perp_price and spot_price and depth:
+            oi_usd = oi_data["openInterest"] * perp_price
+            mid_price = (spot_price + perp_price) / 2
+            depth_2pct = calculate_depth_2pct(depth["bids"], depth["asks"], mid_price)
+            
+            fragility = calculate_fragility_score(
+                open_interest_usd=oi_usd,
+                depth_2pct_usd=depth_2pct,
+                current_funding=current_funding,
+                funding_7d=funding_hist if funding_hist else [current_funding] * 7,
+                spot_price=spot_price,
+                perp_price=perp_price
+            )
+        else:
+            # Fallback to legacy if data fetch fails
+            fragility = calculate_fragility(
+                vol_percentile=45,
+                drawdown_pct=-15,
+                funding_rate=funding_data.get("BTC", {}).get("rate", 0),
+                exchange_flow_pct=0
+            )
+            fragility["note"] = "Using fallback calculation - live data temporarily unavailable"
+    except Exception as e:
+        print(f"Error calculating new fragility: {e}")
+        # Fallback to legacy calculation
+        fragility = calculate_fragility(
+            vol_percentile=45,
+            drawdown_pct=-15,
+            funding_rate=funding_data.get("BTC", {}).get("rate", 0),
+            exchange_flow_pct=0
+        )
+        fragility["note"] = "Using fallback calculation"
     
     # Fetch Derivative Sentiment (real data from Binance Futures)
     derivative_sentiment = await derivative_sentiment_fetcher.get_sentiment()
