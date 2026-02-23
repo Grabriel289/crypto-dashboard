@@ -104,10 +104,14 @@ function SectorRotation({ data }) {
                       </div>
                     </td>
                     <td className={`font-mono ${getReturnColor(sector.avg_return_7d)}`}>
-                      {sector.avg_return_7d > 0 ? '+' : ''}{sector.avg_return_7d}%
+                      {typeof sector.avg_return_7d === 'number' 
+                        ? `${sector.avg_return_7d > 0 ? '+' : ''}${sector.avg_return_7d.toFixed(2)}%` 
+                        : 'N/A'}
                     </td>
                     <td className={`font-mono ${getReturnColor(sector.avg_vs_btc_7d)}`}>
-                      {sector.avg_vs_btc_7d > 0 ? '+' : ''}{sector.avg_vs_btc_7d}%
+                      {typeof sector.avg_vs_btc_7d === 'number' 
+                        ? `${sector.avg_vs_btc_7d > 0 ? '+' : ''}${sector.avg_vs_btc_7d.toFixed(2)}%` 
+                        : 'N/A'}
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
@@ -151,25 +155,36 @@ function SectorRotation({ data }) {
                             Top 3 Performers in {sector.sector}
                           </h4>
                           <div className="grid grid-cols-3 gap-4">
-                            {sector.top_3_coins.map((coin, idx) => (
-                              <div 
-                                key={coin.symbol}
-                                className="bg-cyber-bg-card rounded-lg p-3 border border-cyber-border-subtle"
-                              >
-                                <div className="flex items-center gap-2 mb-2">
-                                  <span className="text-lg">
-                                    {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
-                                  </span>
-                                  <span className="font-bold text-white">{coin.symbol}</span>
+                            {sector.top_3_coins.map((coin, idx) => {
+                              // Ensure values are numbers, default to 0
+                              const return7d = typeof coin.return_7d === 'number' ? coin.return_7d : 0
+                              const vsBtc = typeof coin.vs_btc === 'number' ? coin.vs_btc : 0
+                              
+                              return (
+                                <div 
+                                  key={coin.symbol}
+                                  className="bg-cyber-bg-card rounded-lg p-3 border border-cyber-border-subtle"
+                                >
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="text-lg">
+                                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉'}
+                                    </span>
+                                    <span className="font-bold text-white">{coin.symbol}</span>
+                                  </div>
+                                  <div className={`text-sm font-mono ${getReturnColor(return7d)}`}>
+                                    {return7d > 0 ? '+' : ''}{return7d.toFixed(2)}%
+                                  </div>
+                                  <div className={`text-xs ${getReturnColor(vsBtc)}`}>
+                                    vs BTC: {vsBtc > 0 ? '+' : ''}{vsBtc.toFixed(2)}%
+                                  </div>
+                                  {coin.data_source && (
+                                    <div className="text-xs text-cyber-text-muted mt-1">
+                                      {coin.data_source === '7d_klines' ? '✓ 7D' : '~24h'}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className={`text-sm font-mono ${getReturnColor(coin.return_7d)}`}>
-                                  {coin.return_7d > 0 ? '+' : ''}{coin.return_7d}%
-                                </div>
-                                <div className="text-xs text-cyber-text-muted">
-                                  vs BTC: {coin.vs_btc > 0 ? '+' : ''}{coin.vs_btc}%
-                                </div>
-                              </div>
-                            ))}
+                              )
+                            })}
                           </div>
                         </div>
                       </td>
