@@ -97,29 +97,35 @@ class DataAggregator:
         return await binance_fetcher.fetch_open_interest(symbol)
     
     async def fetch_7d_return(self, coin: str) -> Optional[float]:
-        """Fetch real 7-day return from klines data."""
-        symbol_map = SYMBOL_MAPPING.get("binance", {})
-        symbol = symbol_map.get(coin)
+        """Fetch real 7-day return from klines data. Tries Binance first, then OKX."""
+        # Try Binance first
+        binance_symbol = SYMBOL_MAPPING.get("binance", {}).get(coin)
+        if binance_symbol:
+            df = await binance_fetcher.fetch_klines(binance_symbol, interval="1d", limit=8)
+            if df is not None and len(df) >= 8:
+                try:
+                    price_7d_ago = df["close"].iloc[0]
+                    current_price = df["close"].iloc[-1]
+                    return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
+                    return return_7d
+                except Exception as e:
+                    print(f"Error calculating 7d return for {coin} from Binance: {e}")
         
-        if not symbol:
-            return None
+        # Fallback to OKX
+        okx_symbol = SYMBOL_MAPPING.get("okx", {}).get(coin)
+        if okx_symbol:
+            from data.fetchers.okx import okx_fetcher
+            df = await okx_fetcher.fetch_klines(okx_symbol, interval="1D", limit=8)
+            if df is not None and len(df) >= 8:
+                try:
+                    price_7d_ago = df["close"].iloc[0]
+                    current_price = df["close"].iloc[-1]
+                    return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
+                    return return_7d
+                except Exception as e:
+                    print(f"Error calculating 7d return for {coin} from OKX: {e}")
         
-        # Fetch 8 days of daily data (to calculate 7-day change)
-        df = await binance_fetcher.fetch_klines(symbol, interval="1d", limit=8)
-        
-        if df is None or len(df) < 8:
-            return None
-        
-        try:
-            # Calculate 7-day return: (current - 7_days_ago) / 7_days_ago * 100
-            price_7d_ago = df["close"].iloc[0]  # First candle (8 days ago)
-            current_price = df["close"].iloc[-1]  # Last candle (today)
-            
-            return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
-            return return_7d
-        except Exception as e:
-            print(f"Error calculating 7d return for {coin}: {e}")
-            return None
+        return None
     
     async def fetch_multiple_7d_returns(self, coins: List[str]) -> Dict[str, float]:
         """Fetch 7-day returns for multiple coins concurrently."""
