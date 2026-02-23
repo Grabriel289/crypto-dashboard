@@ -25,23 +25,32 @@ class StablecoinFetcher:
     
     def _parse_data(self, data: Dict) -> Dict[str, Any]:
         """Parse DefiLlama stablecoin data."""
-        target_symbols = ['USDT', 'USDC', 'DAI']
+        target_symbols = ['USDT', 'USDC', 'USDS', 'USDe']
         stablecoins = []
+        found_symbols = set()
         
         for asset in data.get("peggedAssets", []):
             symbol = asset.get("symbol", "")
-            if symbol in target_symbols:
-                current_supply = asset.get("circulating", {}).get("peggedUSD", 0)
-                prev_week = asset.get("circulatingPrevWeek", {}).get("peggedUSD", current_supply)
-                change_7d = current_supply - prev_week
-                
-                stablecoins.append({
-                    "symbol": symbol,
-                    "supply": round(current_supply / 1e9, 2),  # In billions
-                    "change_7d": round(change_7d / 1e9, 2),
-                    "status": "MINTING" if change_7d >= 0 else "REDEEMING",
-                    "emoji": "🟢" if change_7d >= 0 else "🔴"
-                })
+            # Skip if not in target list or already found (avoid duplicates)
+            if symbol not in target_symbols or symbol in found_symbols:
+                continue
+            
+            current_supply = asset.get("circulating", {}).get("peggedUSD", 0)
+            # Skip tiny supplies (< $1M)
+            if current_supply < 1e6:
+                continue
+            
+            prev_week = asset.get("circulatingPrevWeek", {}).get("peggedUSD", current_supply)
+            change_7d = current_supply - prev_week
+            
+            stablecoins.append({
+                "symbol": symbol,
+                "supply": round(current_supply / 1e9, 2),  # In billions
+                "change_7d": round(change_7d / 1e9, 2),
+                "status": "MINTING" if change_7d >= 0 else "REDEEMING",
+                "emoji": "🟢" if change_7d >= 0 else "🔴"
+            })
+            found_symbols.add(symbol)
         
         # Sort by supply descending
         stablecoins.sort(key=lambda x: x["supply"], reverse=True)
@@ -70,9 +79,10 @@ class StablecoinFetcher:
             "stablecoins": [
                 {"symbol": "USDT", "supply": 143.2, "change_7d": 1.5, "status": "MINTING", "emoji": "🟢"},
                 {"symbol": "USDC", "supply": 52.8, "change_7d": 0.9, "status": "MINTING", "emoji": "🟢"},
-                {"symbol": "DAI", "supply": 5.2, "change_7d": -0.1, "status": "REDEEMING", "emoji": "🔴"}
+                {"symbol": "USDS", "supply": 4.2, "change_7d": 0.2, "status": "MINTING", "emoji": "🟢"},
+                {"symbol": "USDe", "supply": 6.1, "change_7d": -0.3, "status": "REDEEMING", "emoji": "🔴"}
             ],
-            "total_supply": 201.2,
+            "total_supply": 206.3,
             "total_change_7d": 2.3,
             "insight": "🟢 Bullish: Stablecoins minting = New capital entering crypto"
         }
