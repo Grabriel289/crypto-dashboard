@@ -153,9 +153,9 @@ async def get_sector_data() -> Dict[str, Any]:
         all_coins.extend(sector_coins["coins"])
     all_coins = list(set(all_coins))
     
-    # Fetch prices and real 7-day returns concurrently
+    # Fetch prices (with CoinGecko fallback) and real 7-day returns concurrently
     prices_result, returns_7d_data = await asyncio.gather(
-        data_aggregator.fetch_multiple_prices(all_coins),
+        data_aggregator.fetch_multiple_prices_with_coingecko(all_coins),
         data_aggregator.fetch_multiple_7d_returns(all_coins)
     )
     prices = prices_result.get("prices", {})

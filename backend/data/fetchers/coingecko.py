@@ -39,24 +39,34 @@ class CoinGeckoFetcher:
                 await asyncio.sleep(self._min_interval - elapsed)
         self._last_request = datetime.now()
     
-    async def fetch_price(self, coin: str) -> Optional[Dict[str, Any]]:
-        """Fetch price data from CoinGecko with caching."""
-        # Check cache
-        cache_key = f"price_{coin}"
-        if cache_key in self._cache:
-            cached = self._cache[cache_key]
-            if datetime.now() - cached["time"] < timedelta(seconds=self._cache_ttl):
-                return cached["data"]
+    async def fetch_prices_batch(self, coins: list) -> Dict[str, Dict[str, Any]]:
+        """Fetch prices for multiple coins in one request (efficient)."""
+        # Filter to coins we support and not in cache
+        coin_ids = []
+        coins_to_fetch = []
+        results = {}
         
-        coin_id = self.COIN_IDS.get(coin)
-        if not coin_id:
-            return None
+        for coin in coins:
+            cache_key = f"price_{coin}"
+            if cache_key in self._cache:
+                cached = self._cache[cache_key]
+                if datetime.now() - cached["time"] < timedelta(seconds=self._cache_ttl):
+                    results[coin] = cached["data"]
+                    continue
+            
+            coin_id = self.COIN_IDS.get(coin)
+            if coin_id:
+                coin_ids.append(coin_id)
+                coins_to_fetch.append(coin)
+        
+        if not coin_ids:
+            return results
         
         await self._rate_limit()
         
         url = f"{COINGECKO_URL}/simple/price"
         params = {
-            "ids": coin_id,
+            "ids": ",".join(coin_ids),
             "vs_currencies": "usd",
             "include_24hr_change": "true",
             "include_24hr_vol": "true"
@@ -66,29 +76,38 @@ class CoinGeckoFetcher:
             try:
                 async with session.get(url, params=params, timeout=30) as response:
                     if response.status == 429:
-                        print(f"CoinGecko rate limit hit for {coin}")
-                        return None
+                        print("CoinGecko rate limit hit for batch request")
+                        return results
                     if response.status != 200:
-                        return None
+                        return results
+                    
                     data = await response.json()
-                    coin_data = data.get(coin_id, {})
                     
-                    if not coin_data:
-                        return None
+                    # Map results back to coin symbols
+                    for coin in coins_to_fetch:
+                        coin_id = self.COIN_IDS.get(coin)
+                        coin_data = data.get(coin_id, {})
+                        
+                        if coin_data and coin_data.get("usd"):
+                            result = {
+                                "price": float(coin_data.get("usd", 0)),
+                                "change_24h": float(coin_data.get("usd_24h_change", 0)),
+                                "volume_24h": float(coin_data.get("usd_24h_vol", 0)),
+                                "source": "coingecko"
+                            }
+                            results[coin] = result
+                            # Cache
+                            self._cache[f"price_{coin}"] = {"data": result, "time": datetime.now()}
                     
-                    result = {
-                        "price": float(coin_data.get("usd", 0)),
-                        "change_24h": float(coin_data.get("usd_24h_change", 0)),
-                        "volume_24h": float(coin_data.get("usd_24h_vol", 0)),
-                        "source": "coingecko"
-                    }
-                    
-                    # Cache result
-                    self._cache[cache_key] = {"data": result, "time": datetime.now()}
-                    return result
+                    return results
             except Exception as e:
-                print(f"CoinGecko price fetch error for {coin}: {e}")
-                return None
+                print(f"CoinGecko batch fetch error: {e}")
+                return results
+    
+    async def fetch_price(self, coin: str) -> Optional[Dict[str, Any]]:
+        """Fetch price data from CoinGecko with caching."""
+        batch_result = await self.fetch_prices_batch([coin])
+        return batch_result.get(coin)
     
     async def fetch_7d_change(self, coin: str) -> Optional[float]:
         """Fetch 7-day price change percentage with caching."""

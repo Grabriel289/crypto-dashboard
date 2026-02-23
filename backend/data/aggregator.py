@@ -52,21 +52,39 @@ class DataAggregator:
                 print(f"Error fetching {coin} from {exchange}: {e}")
                 continue
         
-        # Fallback to CoinGecko for coins not on major exchanges
-        try:
-            from data.fetchers.coingecko import coingecko_fetcher
-            result = await coingecko_fetcher.fetch_price(coin)
-            if result:
-                result["coin"] = coin
-                self.price_cache[cache_key] = {
-                    "data": result,
-                    "timestamp": datetime.now()
-                }
-                return result
-        except Exception as e:
-            print(f"Error fetching {coin} from CoinGecko: {e}")
-        
         return None
+    
+    async def fetch_multiple_prices_with_coingecko(self, coins: List[str]) -> Dict[str, Any]:
+        """Fetch prices for multiple coins, using CoinGecko as fallback for altcoins."""
+        # First try exchanges
+        result = await self.fetch_multiple_prices(coins)
+        prices = result.get("prices", {})
+        
+        # Find coins that weren't found
+        missing_coins = [c for c in coins if c not in prices]
+        
+        if missing_coins:
+            # Try CoinGecko batch fetch for missing coins
+            try:
+                from data.fetchers.coingecko import coingecko_fetcher
+                cg_prices = await coingecko_fetcher.fetch_prices_batch(missing_coins)
+                
+                for coin, price_data in cg_prices.items():
+                    price_data["coin"] = coin
+                    prices[coin] = price_data
+                    # Update cache
+                    self.price_cache[f"price_{coin}"] = {
+                        "data": price_data,
+                        "timestamp": datetime.now()
+                    }
+            except Exception as e:
+                print(f"CoinGecko batch fetch error: {e}")
+        
+        return {
+            "prices": prices,
+            "errors": result.get("errors", []),
+            "timestamp": datetime.now().isoformat()
+        }
     
     async def fetch_multiple_prices(self, coins: List[str]) -> Dict[str, Any]:
         """Fetch prices for multiple coins concurrently."""
