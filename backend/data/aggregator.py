@@ -52,6 +52,20 @@ class DataAggregator:
                 print(f"Error fetching {coin} from {exchange}: {e}")
                 continue
         
+        # Fallback to CoinGecko for coins not on major exchanges
+        try:
+            from data.fetchers.coingecko import coingecko_fetcher
+            result = await coingecko_fetcher.fetch_price(coin)
+            if result:
+                result["coin"] = coin
+                self.price_cache[cache_key] = {
+                    "data": result,
+                    "timestamp": datetime.now()
+                }
+                return result
+        except Exception as e:
+            print(f"Error fetching {coin} from CoinGecko: {e}")
+        
         return None
     
     async def fetch_multiple_prices(self, coins: List[str]) -> Dict[str, Any]:
@@ -97,7 +111,7 @@ class DataAggregator:
         return await binance_fetcher.fetch_open_interest(symbol)
     
     async def fetch_7d_return(self, coin: str) -> Optional[float]:
-        """Fetch real 7-day return from klines data. Tries Binance first, then OKX."""
+        """Fetch real 7-day return from klines data. Tries Binance, OKX, then CoinGecko."""
         # Try Binance first
         binance_symbol = SYMBOL_MAPPING.get("binance", {}).get(coin)
         if binance_symbol:
@@ -124,6 +138,15 @@ class DataAggregator:
                     return return_7d
                 except Exception as e:
                     print(f"Error calculating 7d return for {coin} from OKX: {e}")
+        
+        # Fallback to CoinGecko
+        try:
+            from data.fetchers.coingecko import coingecko_fetcher
+            return_7d = await coingecko_fetcher.fetch_7d_change(coin)
+            if return_7d is not None:
+                return return_7d
+        except Exception as e:
+            print(f"Error fetching 7d return for {coin} from CoinGecko: {e}")
         
         return None
     
