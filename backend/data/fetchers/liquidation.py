@@ -1,78 +1,251 @@
-"""BTC Liquidation Heatmap fetcher."""
+"""BTC Liquidation Heatmap fetcher - Real-time from Binance."""
 import aiohttp
-from typing import Dict, Any, List
+import asyncio
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
 
 
 class LiquidationFetcher:
-    """Fetch liquidation heatmap data."""
+    """Fetch liquidation heatmap data from Binance Futures."""
     
-    COINGLASS_API = "https://open-api.coinglass.com/public/v2"
+    BINANCE_FUTURES = "https://fapi.binance.com"
+    BINANCE_SPOT = "https://api.binance.com"
     
-    async def get_heatmap(self) -> Dict[str, Any]:
-        """Get liquidation heatmap data."""
-        # Note: CoinGlass requires API key for full data
-        # This is a simplified implementation that returns estimated data
-        # In production, add: headers={"coinglassSecret": "YOUR_API_KEY"}
+    def __init__(self):
+        self.session: Optional[aiohttp.ClientSession] = None
+    
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """Get or create aiohttp session."""
+        if self.session is None or self.session.closed:
+            self.session = aiohttp.ClientSession()
+        return self.session
+    
+    async def close(self):
+        """Close the session."""
+        if self.session and not self.session.closed:
+            await self.session.close()
+    
+    async def fetch_open_interest(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, Any]]:
+        """Fetch open interest from Binance Futures."""
+        try:
+            session = await self._get_session()
+            url = f"{self.BINANCE_FUTURES}/fapi/v1/openInterest"
+            
+            async with session.get(url, params={"symbol": symbol}, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return {
+                        "symbol": data["symbol"],
+                        "openInterest": float(data["openInterest"]),
+                        "time": data["time"]
+                    }
+                return None
+        except Exception as e:
+            print(f"Error fetching OI for {symbol}: {e}")
+            return None
+    
+    async def fetch_funding_rate(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, Any]]:
+        """Fetch current funding rate."""
+        try:
+            session = await self._get_session()
+            url = f"{self.BINANCE_FUTURES}/fapi/v1/premiumIndex"
+            
+            async with session.get(url, params={"symbol": symbol}, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return {
+                        "symbol": data["symbol"],
+                        "markPrice": float(data["markPrice"]),
+                        "lastFundingRate": float(data["lastFundingRate"]),
+                        "nextFundingTime": data["nextFundingTime"]
+                    }
+                return None
+        except Exception as e:
+            print(f"Error fetching funding for {symbol}: {e}")
+            return None
+    
+    async def fetch_funding_history(self, symbol: str = "BTCUSDT", limit: int = 21) -> List[float]:
+        """Fetch funding rate history for 7 days (21 periods)."""
+        try:
+            session = await self._get_session()
+            url = f"{self.BINANCE_FUTURES}/fapi/v1/fundingRate"
+            
+            async with session.get(url, params={"symbol": symbol, "limit": limit}, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return [float(r["fundingRate"]) for r in data]
+                return []
+        except Exception as e:
+            print(f"Error fetching funding history for {symbol}: {e}")
+            return []
+    
+    async def fetch_prices(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, float]]:
+        """Fetch both spot and perpetual prices."""
+        try:
+            session = await self._get_session()
+            
+            # Perp price
+            perp_url = f"{self.BINANCE_FUTURES}/fapi/v1/ticker/price"
+            async with session.get(perp_url, params={"symbol": symbol}, timeout=10) as resp:
+                if resp.status != 200:
+                    return None
+                perp_data = await resp.json()
+                perp_price = float(perp_data["price"])
+            
+            # Spot price
+            spot_url = f"{self.BINANCE_SPOT}/api/v3/ticker/price"
+            async with session.get(spot_url, params={"symbol": symbol}, timeout=10) as resp:
+                if resp.status != 200:
+                    return None
+                spot_data = await resp.json()
+                spot_price = float(spot_data["price"])
+            
+            return {
+                "spot": spot_price,
+                "perp": perp_price,
+                "basis": perp_price - spot_price,
+                "basis_pct": (perp_price - spot_price) / spot_price * 100
+            }
+        except Exception as e:
+            print(f"Error fetching prices for {symbol}: {e}")
+            return None
+    
+    async def fetch_orderbook_depth(self, symbol: str = "BTCUSDT", limit: int = 1000) -> Optional[Dict[str, Any]]:
+        """Fetch order book depth."""
+        try:
+            session = await self._get_session()
+            url = f"{self.BINANCE_FUTURES}/fapi/v1/depth"
+            
+            async with session.get(url, params={"symbol": symbol, "limit": limit}, timeout=10) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    return {
+                        "bids": [[float(p), float(q)] for p, q in data["bids"]],
+                        "asks": [[float(p), float(q)] for p, q in data["asks"]],
+                        "lastUpdateId": data["lastUpdateId"]
+                    }
+                return None
+        except Exception as e:
+            print(f"Error fetching depth for {symbol}: {e}")
+            return None
+    
+    async def get_heatmap(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
+        """
+        Get complete liquidation heatmap with fragility score.
+        
+        This fetches all required data and calculates:
+        1. Market Fragility Score (Φ)
+        2. Estimated Liquidation Heatmap
+        3. Major liquidation zones
+        """
+        from analysis.liquidation_heatmap import calculate_complete_heatmap
+        from scoring.fragility import calculate_depth_2pct
         
         try:
-            # Try to fetch from CoinGlass (will fail without API key)
-            url = f"{self.COINGLASS_API}/liquidation_map"
-            params = {"symbol": "BTC", "interval": "1d"}
+            # Fetch all required data concurrently
+            oi_data, funding_data, prices, depth = await asyncio.gather(
+                self.fetch_open_interest(symbol),
+                self.fetch_funding_rate(symbol),
+                self.fetch_prices(symbol),
+                self.fetch_orderbook_depth(symbol)
+            )
             
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, params=params) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        return self._parse_coinglass_data(data)
-        except Exception:
-            pass
-        
-        # Return estimated data based on current market conditions
-        return self._get_estimated_data()
+            # Fetch funding history (needed for F_sigma)
+            funding_history = await self.fetch_funding_history(symbol)
+            
+            # Check if we have all required data
+            if not all([oi_data, funding_data, prices, depth]):
+                return self._get_fallback_data(symbol)
+            
+            # Calculate OI in USD
+            oi_usd = oi_data["openInterest"] * prices["perp"]
+            
+            # Calculate depth within 2%
+            mid_price = (prices["spot"] + prices["perp"]) / 2
+            depth_2pct = calculate_depth_2pct(depth["bids"], depth["asks"], mid_price)
+            
+            # Calculate complete heatmap
+            result = calculate_complete_heatmap(
+                current_price=prices["perp"],
+                oi_usd=oi_usd,
+                funding_rate=funding_data["lastFundingRate"],
+                depth_2pct=depth_2pct,
+                funding_7d=funding_history if funding_history else [funding_data["lastFundingRate"]] * 7,
+                spot_price=prices["spot"],
+                perp_price=prices["perp"]
+            )
+            
+            result["timestamp"] = datetime.utcnow().isoformat()
+            result["source"] = "binance_live"
+            
+            return result
+            
+        except Exception as e:
+            print(f"Error calculating heatmap for {symbol}: {e}")
+            return self._get_fallback_data(symbol)
     
-    def _parse_coinglass_data(self, data: Dict) -> Dict[str, Any]:
-        """Parse CoinGlass API response."""
-        # Parse actual data from API
+    def _get_fallback_data(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
+        """Get estimated data when live data fails."""
+        current_price = 95000  # Approximate current BTC price
+        
         return {
-            "short_levels": data.get("shortLiquidation", []),
-            "long_levels": data.get("longLiquidation", []),
-            "current_price": data.get("currentPrice", 68000),
-            "total_longs": data.get("totalLongs", 6.7e9),
-            "total_shorts": data.get("totalShorts", 3.6e9)
+            "symbol": symbol,
+            "current_price": current_price,
+            "timestamp": datetime.utcnow().isoformat(),
+            "source": "estimated_fallback",
+            "fragility": {
+                "score": 45.0,
+                "level": "Caution",
+                "emoji": "🟡",
+                "color": "#ffaa00",
+                "components": {
+                    "L_d": {"value": 40.0, "label": "Liquidation Density"},
+                    "F_sigma": {"value": 50.0, "label": "Funding Deviation"},
+                    "B_z": {"value": 45.0, "label": "Basis Tension"}
+                }
+            },
+            "estimated_liquidations": {
+                "long_liquidations": {
+                    90000: 1.5e9,
+                    85000: 2.8e9,
+                    80000: 3.2e9,
+                    75000: 2.1e9
+                },
+                "short_liquidations": {
+                    100000: 1.2e9,
+                    105000: 2.1e9,
+                    110000: 1.8e9,
+                    115000: 0.9e9
+                },
+                "total_long_at_risk": 9.6e9,
+                "total_short_at_risk": 6.0e9,
+                "data_type": "ESTIMATED_FALLBACK",
+                "disclaimer": "Using fallback estimates - live data temporarily unavailable"
+            },
+            "major_zones": [
+                {"price": 80000, "usd_value": 3.2e9, "side": "LONG", "distance_pct": 15.8},
+                {"price": 85000, "usd_value": 2.8e9, "side": "LONG", "distance_pct": 10.5}
+            ],
+            "insight": {
+                "emoji": "🟡",
+                "summary": "CAUTION: Using estimated data",
+                "details": ["Live data temporarily unavailable"],
+                "recommendation": "Check connection to Binance API"
+            }
         }
     
-    def _get_estimated_data(self) -> Dict[str, Any]:
-        """Get estimated liquidation data for demo purposes."""
-        # These are realistic estimates based on typical market conditions
-        current_price = 68072
+    async def get_multi_heatmap(self, symbols: List[str] = None) -> Dict[str, Any]:
+        """Get heatmap for multiple symbols."""
+        if symbols is None:
+            symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
         
-        short_levels = [
-            {"price": 75000, "amount": 1.8e9, "label": "Major cluster"},
-            {"price": 72000, "amount": 1.2e9, "label": ""},
-            {"price": 70000, "amount": 650e6, "label": ""},
-        ]
-        
-        long_levels = [
-            {"price": 66000, "amount": 720e6, "label": ""},
-            {"price": 65000, "amount": 1.1e9, "label": "Major cluster"},
-            {"price": 62000, "amount": 2.1e9, "label": "Major cluster"},
-            {"price": 60000, "amount": 2.8e9, "label": "Liquidation wall"},
-        ]
-        
-        # Sort by distance from current price
-        nearest_long = min(long_levels, key=lambda x: abs(x["price"] - current_price))
+        results = {}
+        for symbol in symbols:
+            results[symbol] = await self.get_heatmap(symbol)
         
         return {
-            "short_levels": short_levels,
-            "long_levels": long_levels,
-            "current_price": current_price,
-            "nearest_liquidation": {
-                "price": nearest_long["price"],
-                "side": "LONGS",
-                "amount": nearest_long["amount"]
-            },
-            "total_longs": 6.7e9,
-            "total_shorts": 3.6e9
+            "symbols": results,
+            "timestamp": datetime.utcnow().isoformat()
         }
 
 

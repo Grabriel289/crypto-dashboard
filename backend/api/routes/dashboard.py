@@ -248,11 +248,35 @@ async def get_key_levels() -> Dict[str, Any]:
 
 
 @router.get("/liquidation-heatmap")
-async def get_liquidation_heatmap() -> Dict[str, Any]:
-    """Get BTC Liquidation Heatmap."""
-    heatmap = await liquidation_fetcher.get_heatmap()
+async def get_liquidation_heatmap(symbol: str = "BTCUSDT") -> Dict[str, Any]:
+    """
+    Get Liquidation Heatmap with Fragility Score.
+    
+    Returns:
+        - Market Fragility Score (Φ) = (L_d + F_σ + B_z) / 3
+        - Estimated liquidation levels from OI + leverage
+        - Realized liquidations (if WebSocket collector is running)
+    """
+    # Get estimated heatmap with fragility
+    heatmap = await liquidation_fetcher.get_heatmap(symbol)
+    
+    # Get realized liquidations from memory store
+    from data.collectors.liquidation_ws import liquidation_store
+    realized = liquidation_store.get_aggregated(symbol, hours=24)
+    
     return {
-        "heatmap": heatmap,
+        "symbol": symbol,
+        "current_price": heatmap.get("current_price"),
+        "fragility": heatmap.get("fragility"),
+        "estimated": heatmap.get("estimated_liquidations"),
+        "realized_24h": realized,
+        "major_zones": heatmap.get("major_zones"),
+        "insight": heatmap.get("insight"),
+        "data_sources": {
+            "fragility": "Calculated from OI, Funding Rate, Order Book Depth, and Spot-Perp Basis",
+            "estimated": "Calculated from OI + leverage distribution assumptions (~60-70% accuracy)",
+            "realized": "Actual liquidations from Binance forceOrder WebSocket stream"
+        },
         "timestamp": datetime.now().isoformat()
     }
 

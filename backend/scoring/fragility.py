@@ -1,8 +1,166 @@
-"""Market fragility scoring module."""
-from typing import Dict, Any
+"""Market fragility scoring module - Fixed implementation per specification."""
+from typing import Dict, Any, List, Optional
 import numpy as np
 
 
+def calculate_depth_2pct(bids: List[List], asks: List[List], mid_price: float) -> float:
+    """
+    Calculate total liquidity within 2% of mid price.
+    
+    Args:
+        bids: List of [price, quantity] from order book
+        asks: List of [price, quantity] from order book
+        mid_price: Current mid price
+    
+    Returns:
+        Total USD liquidity within ±2%
+    """
+    upper_bound = mid_price * 1.02
+    lower_bound = mid_price * 0.98
+    
+    # Sum bid liquidity within range
+    bid_depth = sum(
+        float(price) * float(qty)
+        for price, qty in bids
+        if float(price) >= lower_bound
+    )
+    
+    # Sum ask liquidity within range
+    ask_depth = sum(
+        float(price) * float(qty)
+        for price, qty in asks
+        if float(price) <= upper_bound
+    )
+    
+    return bid_depth + ask_depth
+
+
+def calculate_L_d(open_interest_usd: float, depth_2pct_usd: float) -> float:
+    """
+    L_d — Liquidation Density (Slippage Risk)
+    
+    Formula: L_d = min(100, OI / (Depth_2% × 10))
+    
+    Measures: How much OI vs available liquidity
+    High L_d = Small trades cause cascades
+    """
+    if depth_2pct_usd <= 0:
+        return 100.0
+    
+    L_d = open_interest_usd / (depth_2pct_usd * 10)
+    return min(100.0, L_d)
+
+
+def calculate_F_sigma(current_funding: float, funding_7d: List[float]) -> float:
+    """
+    F_σ — Funding Deviation (Position Crowding)
+    
+    Formula: F_σ = min(100, |F_i - SMA_7d| / StdDev × 20)
+    
+    Measures: How far current funding is from average
+    High F_σ = Extreme position crowding
+    """
+    if len(funding_7d) < 3:
+        return 50.0  # Not enough data
+    
+    sma_7d = np.mean(funding_7d)
+    std_7d = np.std(funding_7d)
+    
+    if std_7d == 0:
+        return 50.0  # No variance
+    
+    z_score = abs(current_funding - sma_7d) / std_7d
+    F_sigma = z_score * 20
+    
+    return min(100.0, F_sigma)
+
+
+def calculate_B_z(spot_price: float, perp_price: float) -> float:
+    """
+    B_z — Basis Tension (Market Dislocation)
+    
+    Formula: B_z = min(100, |Spot - Perp| / Spot × 1000)
+    
+    Measures: Gap between spot and perpetual
+    High B_z = Market dislocation, likely to snap back
+    """
+    if spot_price <= 0:
+        return 50.0
+    
+    basis_pct = abs(spot_price - perp_price) / spot_price
+    B_z = basis_pct * 1000
+    
+    return min(100.0, B_z)
+
+
+def calculate_fragility_score(
+    open_interest_usd: float,
+    depth_2pct_usd: float,
+    current_funding: float,
+    funding_7d: List[float],
+    spot_price: float,
+    perp_price: float
+) -> Dict[str, Any]:
+    """
+    Calculate Market Fragility Score (Φ).
+    
+    Formula: Φ = (L_d + F_σ + B_z) / 3
+    
+    Returns score 0-100 with components breakdown.
+    """
+    # Calculate components
+    L_d = calculate_L_d(open_interest_usd, depth_2pct_usd)
+    F_sigma = calculate_F_sigma(current_funding, funding_7d)
+    B_z = calculate_B_z(spot_price, perp_price)
+    
+    # Calculate final fragility score
+    phi = (L_d + F_sigma + B_z) / 3
+    
+    # Determine level
+    if phi <= 25:
+        level = "Stable"
+        emoji = "🟢"
+        color = "#00ff88"
+    elif phi <= 50:
+        level = "Caution"
+        emoji = "🟡"
+        color = "#ffaa00"
+    elif phi <= 75:
+        level = "Fragile"
+        emoji = "🟠"
+        color = "#ff6b35"
+    else:
+        level = "Critical"
+        emoji = "🔴"
+        color = "#ff4444"
+    
+    return {
+        "score": round(phi, 1),
+        "level": level,
+        "emoji": emoji,
+        "color": color,
+        "components": {
+            "L_d": {
+                "value": round(L_d, 1),
+                "label": "Liquidation Density",
+                "description": "OI vs liquidity depth"
+            },
+            "F_sigma": {
+                "value": round(F_sigma, 1),
+                "label": "Funding Deviation",
+                "description": "Position crowding"
+            },
+            "B_z": {
+                "value": round(B_z, 1),
+                "label": "Basis Tension",
+                "description": "Spot-perp dislocation"
+            }
+        },
+        "formula": "Φ = (L_d + F_σ + B_z) / 3"
+    }
+
+
+# Legacy function for backward compatibility
 def calculate_fragility(
     vol_percentile: float = 50.0,
     drawdown_pct: float = -10.0,
@@ -10,8 +168,11 @@ def calculate_fragility(
     exchange_flow_pct: float = 0.0
 ) -> Dict[str, Any]:
     """
-    Calculate market fragility score (0-100).
+    LEGACY: Calculate market fragility score (0-100).
     Higher = More fragile/risky
+    
+    This is the old simplified version for backward compatibility.
+    Use calculate_fragility_score() for the proper implementation.
     """
     score = 0
     components = {}
@@ -74,7 +235,8 @@ def calculate_fragility(
         "emoji": emoji,
         "color": color,
         "components": components,
-        "description": f"{label} fragility level"
+        "description": f"{label} fragility level",
+        "note": "Using legacy calculation. Use calculate_fragility_score() for Φ formula."
     }
 
 
@@ -85,7 +247,7 @@ def get_fragility_from_market_data(
     volume_24h: float,
     avg_volume_7d: float
 ) -> Dict[str, Any]:
-    """Calculate fragility from market data."""
+    """Calculate fragility from market data (legacy method)."""
     drawdown = ((current_price / ath_price) - 1) * 100 if ath_price > 0 else 0
     
     # Estimate volatility percentile (simplified)
