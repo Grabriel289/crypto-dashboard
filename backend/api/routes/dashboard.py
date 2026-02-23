@@ -194,13 +194,21 @@ async def get_sector_data() -> Dict[str, Any]:
             returns_7d.append(change_7d)
             returns_vs_btc.append(vs_btc)
             
+            # Determine data source
+            if coin in returns_7d_data:
+                data_source = "7d_klines"
+            elif price_info.get("source") == "coingecko":
+                data_source = "coingecko"
+            else:
+                data_source = "24h_approx"
+            
             coin_details.append({
                 "symbol": coin,
                 "return_7d": round(change_7d, 2),
                 "vs_btc": round(vs_btc, 2),
                 "price": price_info.get("price", 0),
                 "momentum_score": score,
-                "data_source": "7d_klines" if coin in returns_7d_data else "24h_approx"
+                "data_source": data_source
             })
         
         # Sort coins by 7d return to get top 3
