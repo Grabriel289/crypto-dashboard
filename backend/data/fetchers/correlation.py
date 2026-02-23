@@ -1,13 +1,66 @@
-"""Correlation Matrix & PAXG/BTC fetcher."""
+"""Correlation Matrix & PAXG/BTC fetcher with live data calculation."""
 import aiohttp
 import math
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime, timedelta
+import asyncio
+import os
+import sys
+
+# Add parent to path for settings import
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+try:
+    import yfinance as yf
+    YFINANCE_AVAILABLE = True
+except ImportError:
+    YFINANCE_AVAILABLE = False
+    print("Warning: yfinance not available")
+
+try:
+    from config.settings import settings
+    FRED_API_KEY = settings.FRED_API_KEY
+except:
+    FRED_API_KEY = os.getenv("FRED_API_KEY", "")
 
 
 class CorrelationFetcher:
-    """Fetch correlation data and PAXG/BTC ratio."""
+    """Fetch correlation data and PAXG/BTC ratio with live correlation calculation."""
     
     BINANCE_BASE = "https://api.binance.com"
+    FRED_BASE = "https://api.stlouisfed.org/fred"
+    
+    # Yahoo Finance tickers for traditional assets
+    YAHOO_ASSETS = {
+        "SP500": {
+            "ticker": "^GSPC",
+            "asset": "S&P 500",
+            "symbol": "^GSPC"
+        },
+        "NASDAQ": {
+            "ticker": "^IXIC",
+            "asset": "NASDAQ",
+            "symbol": "^IXIC"
+        },
+        "GOLD": {
+            "ticker": "GC=F",
+            "asset": "Gold",
+            "symbol": "GC=F"
+        },
+        "DXY": {
+            "ticker": "DX-Y.NYB",
+            "asset": "DXY (USD)",
+            "symbol": "DX-Y.NYB"
+        }
+    }
+    
+    # FRED Series IDs as fallback
+    FRED_SERIES = {
+        "SP500": {"series_id": "SP500", "asset": "S&P 500", "symbol": "^GSPC"},
+        "NASDAQ": {"series_id": "NASDAQCOM", "asset": "NASDAQ", "symbol": "^IXIC"},
+        "GOLD": {"series_id": "GOLDPMGBD228NLBM", "asset": "Gold", "symbol": "GC=F"},
+        "DXY": {"series_id": "DTWEXBGS", "asset": "DXY (USD)", "symbol": "DX-Y.NYB"}
+    }
     
     async def get_klines(self, symbol: str, interval: str = "1d", limit: int = 30) -> List[List]:
         """Fetch klines data from Binance."""
@@ -31,9 +84,60 @@ class CorrelationFetcher:
                     return await resp.json()
                 return {}
     
+    def fetch_yahoo_history(self, ticker: str, period: str = "3mo") -> Optional[Tuple[List[float], List[datetime]]]:
+        """Fetch historical price data with dates from Yahoo Finance."""
+        if not YFINANCE_AVAILABLE:
+            return None
+        
+        try:
+            import concurrent.futures
+            
+            def _fetch():
+                stock = yf.Ticker(ticker)
+                # Get more data to ensure we have 30 trading days
+                hist = stock.history(period=period, interval="1d")
+                if hist.empty:
+                    return None
+                # Return closing prices and dates
+                prices = hist['Close'].tolist()
+                dates = hist.index.tolist()
+                return prices, dates
+            
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(_fetch)
+                return future.result(timeout=30)
+                
+        except Exception as e:
+            print(f"Yahoo Finance fetch error for {ticker}: {e}")
+            return None
+    
+    def parse_fred_values(self, observations: List[Dict]) -> List[float]:
+        """Extract numeric values from FRED observations."""
+        values = []
+        for obs in reversed(observations):
+            val = obs.get("value", ".")
+            if val != ".":
+                try:
+                    values.append(float(val))
+                except ValueError:
+                    continue
+        return values
+    
+    def calculate_returns(self, prices: List[float]) -> List[float]:
+        """Calculate daily returns from price series."""
+        returns = []
+        for i in range(1, len(prices)):
+            daily_return = (prices[i] - prices[i-1]) / prices[i-1]
+            returns.append(daily_return)
+        return returns
+    
     def calculate_correlation(self, x: List[float], y: List[float]) -> float:
         """Calculate Pearson correlation coefficient."""
         n = min(len(x), len(y))
+        if n < 2:
+            return 0
+        
+        # Use only the last n values
         x_slice = x[-n:]
         y_slice = y[-n:]
         
@@ -70,51 +174,164 @@ class CorrelationFetcher:
             return "Inverse"
         return "Strong Inverse"
     
-    async def get_correlations(self) -> List[Dict[str, Any]]:
-        """Get BTC correlations with traditional assets."""
-        # Fetch BTC data
+    async def get_correlations(self) -> Dict[str, Any]:
+        """Get BTC correlations with traditional assets using 30-day rolling correlation."""
+        # Fetch 30 days of BTC data
         btc_klines = await self.get_klines("BTCUSDT", limit=30)
-        if not btc_klines:
+        if not btc_klines or len(btc_klines) < 7:
             return self._get_fallback_correlations()
         
-        btc_closes = [float(k[4]) for k in btc_klines]
+        # Extract BTC prices and calculate returns (need 31 days for 30 returns)
+        btc_prices = [float(k[4]) for k in btc_klines]
+        btc_returns = self.calculate_returns(btc_prices)
         
-        # In production, fetch from Yahoo Finance for traditional assets
-        # For now, use estimated correlations based on typical market behavior
-        correlations = [
-            {
-                "asset": "S&P 500",
-                "symbol": "^GSPC",
-                "correlation": 0.72,
-                "label": "High Positive"
-            },
-            {
-                "asset": "NASDAQ",
-                "symbol": "^IXIC",
-                "correlation": 0.78,
-                "label": "Very High"
-            },
-            {
-                "asset": "Gold",
-                "symbol": "GC=F",
-                "correlation": -0.15,
-                "label": "Diverging"
-            },
-            {
-                "asset": "DXY (USD)",
-                "symbol": "DX-Y.NYB",
-                "correlation": -0.45,
-                "label": "Inverse"
-            }
-        ]
+        # We need exactly 30 days of returns for 30D rolling correlation
+        target_returns = 30
+        if len(btc_returns) < target_returns:
+            # Fetch more BTC data if needed
+            btc_klines = await self.get_klines("BTCUSDT", limit=35)
+            if btc_klines:
+                btc_prices = [float(k[4]) for k in btc_klines]
+                btc_returns = self.calculate_returns(btc_prices)
+        
+        # Use last 30 returns
+        btc_returns = btc_returns[-target_returns:] if len(btc_returns) >= target_returns else btc_returns
+        
+        correlations = []
+        
+        # Fetch and calculate correlation for each traditional asset
+        for key, config in self.YAHOO_ASSETS.items():
+            try:
+                # Try Yahoo Finance first - fetch 3 months to ensure 30 trading days
+                result = self.fetch_yahoo_history(config["ticker"], period="3mo")
+                source = "Yahoo Finance"
+                
+                if result:
+                    asset_prices, asset_dates = result
+                    
+                    # Calculate asset returns
+                    asset_returns = self.calculate_returns(asset_prices)
+                    
+                    # Take the last N returns where N matches BTC returns length
+                    # This gives us the most recent overlapping period
+                    n_returns = min(len(btc_returns), len(asset_returns))
+                    if n_returns >= 7:  # Need at least 7 days for meaningful correlation
+                        btc_slice = btc_returns[-n_returns:]
+                        asset_slice = asset_returns[-n_returns:]
+                        
+                        # Calculate correlation
+                        corr = self.calculate_correlation(btc_slice, asset_slice)
+                        
+                        correlations.append({
+                            "asset": config["asset"],
+                            "symbol": config["symbol"],
+                            "correlation": round(corr, 2),
+                            "label": self.get_correlation_label(corr),
+                            "source": source,
+                            "data_points": n_returns,
+                            "period_days": n_returns
+                        })
+                    else:
+                        # Not enough data
+                        fallback = self._get_fallback_for_asset(key)
+                        if fallback:
+                            correlations.append(fallback)
+                else:
+                    # Yahoo failed, try FRED
+                    fallback_result = await self._try_fred_fallback(key, btc_returns)
+                    if fallback_result:
+                        correlations.append(fallback_result)
+                    else:
+                        # Use static fallback
+                        fallback = self._get_fallback_for_asset(key)
+                        if fallback:
+                            correlations.append(fallback)
+                        
+            except Exception as e:
+                print(f"Error calculating correlation for {key}: {e}")
+                fallback = self._get_fallback_for_asset(key)
+                if fallback:
+                    correlations.append(fallback)
+        
+        # Sort by correlation strength
+        correlations.sort(key=lambda x: abs(x["correlation"]), reverse=True)
         
         # Generate insight
         insight = self._generate_insight(correlations)
         
         return {
             "correlations": correlations,
-            "insight": insight
+            "insight": insight,
+            "calculation_method": f"{target_returns}-day rolling Pearson correlation of daily returns",
+            "btc_data_points": len(btc_returns),
+            "last_updated": datetime.now().isoformat()
         }
+    
+    async def _try_fred_fallback(self, asset_key: str, btc_returns: List[float]) -> Optional[Dict]:
+        """Try to get correlation from FRED as fallback."""
+        try:
+            from data.fetchers.fred import fred_fetcher
+            
+            series_id = self.FRED_SERIES[asset_key]["series_id"]
+            fred_data = await fred_fetcher.fetch_series(series_id, limit=45)
+            
+            if fred_data and "observations" in fred_data:
+                values = self.parse_fred_values(fred_data["observations"])
+                if len(values) >= 7:
+                    asset_returns = self.calculate_returns(values)
+                    n_returns = min(len(btc_returns), len(asset_returns))
+                    
+                    if n_returns >= 7:
+                        btc_slice = btc_returns[-n_returns:]
+                        asset_slice = asset_returns[-n_returns:]
+                        corr = self.calculate_correlation(btc_slice, asset_slice)
+                        
+                        return {
+                            "asset": self.FRED_SERIES[asset_key]["asset"],
+                            "symbol": self.FRED_SERIES[asset_key]["symbol"],
+                            "correlation": round(corr, 2),
+                            "label": self.get_correlation_label(corr),
+                            "source": "FRED",
+                            "data_points": n_returns,
+                            "period_days": n_returns
+                        }
+        except Exception as e:
+            print(f"FRED fallback error for {asset_key}: {e}")
+        return None
+    
+    def _get_fallback_for_asset(self, asset_key: str) -> Optional[Dict[str, Any]]:
+        """Get fallback correlation for a specific asset."""
+        fallbacks = {
+            "SP500": {
+                "asset": "S&P 500",
+                "symbol": "^GSPC",
+                "correlation": 0.72,
+                "label": "High Positive",
+                "source": "estimated"
+            },
+            "NASDAQ": {
+                "asset": "NASDAQ",
+                "symbol": "^IXIC",
+                "correlation": 0.78,
+                "label": "Very High",
+                "source": "estimated"
+            },
+            "GOLD": {
+                "asset": "Gold",
+                "symbol": "GC=F",
+                "correlation": -0.15,
+                "label": "Diverging",
+                "source": "estimated"
+            },
+            "DXY": {
+                "asset": "DXY (USD)",
+                "symbol": "DX-Y.NYB",
+                "correlation": -0.45,
+                "label": "Inverse",
+                "source": "estimated"
+            }
+        }
+        return fallbacks.get(asset_key)
     
     def _generate_insight(self, correlations: List[Dict]) -> str:
         """Generate insight based on correlations."""
@@ -122,12 +339,34 @@ class CorrelationFetcher:
         dxy = next((c for c in correlations if "DXY" in c["asset"]), None)
         gold = next((c for c in correlations if "Gold" in c["asset"]), None)
         
+        highest = max(correlations, key=lambda x: x["correlation"]) if correlations else None
+        lowest = min(correlations, key=lambda x: x["correlation"]) if correlations else None
+        
+        insights = []
+        
         if nasdaq and nasdaq["correlation"] > 0.6:
-            return "📊 BTC trading as high-beta tech/risk asset"
+            insights.append("BTC trading as high-beta tech/risk asset")
+        elif nasdaq and nasdaq["correlation"] > 0.3:
+            insights.append("Moderate correlation with tech stocks")
+        
         if dxy and dxy["correlation"] < -0.4:
-            return "💵 BTC inversely correlated with USD"
+            insights.append("inversely correlated with USD")
+        elif dxy and dxy["correlation"] < -0.2:
+            insights.append("showing some inverse relation to USD strength")
+        
         if gold and gold["correlation"] > 0.4:
-            return "🥇 BTC moving with Gold as store-of-value"
+            insights.append("moving with Gold as store-of-value")
+        elif gold and gold["correlation"] > 0:
+            insights.append("weak positive correlation with Gold")
+        
+        if insights:
+            return "📊 " + "; ".join(insights)
+        
+        if highest and highest["correlation"] > 0.5:
+            return f"📊 BTC most correlated with {highest['asset']} ({highest['correlation']:.2f})"
+        if lowest and lowest["correlation"] < -0.3:
+            return f"📊 BTC most inversely correlated with {lowest['asset']} ({lowest['correlation']:.2f})"
+        
         return "📈 Mixed correlations — monitor for regime shift"
     
     async def get_paxg_btc(self) -> Dict[str, Any]:
@@ -179,15 +418,17 @@ class CorrelationFetcher:
         }
     
     def _get_fallback_correlations(self) -> Dict[str, Any]:
-        """Fallback correlation data."""
+        """Fallback correlation data when all sources fail."""
         return {
             "correlations": [
-                {"asset": "S&P 500", "symbol": "^GSPC", "correlation": 0.72, "label": "High Positive"},
-                {"asset": "NASDAQ", "symbol": "^IXIC", "correlation": 0.78, "label": "Very High"},
-                {"asset": "Gold", "symbol": "GC=F", "correlation": -0.15, "label": "Diverging"},
-                {"asset": "DXY (USD)", "symbol": "DX-Y.NYB", "correlation": -0.45, "label": "Inverse"}
+                {"asset": "S&P 500", "symbol": "^GSPC", "correlation": 0.72, "label": "High Positive", "source": "estimated"},
+                {"asset": "NASDAQ", "symbol": "^IXIC", "correlation": 0.78, "label": "Very High", "source": "estimated"},
+                {"asset": "Gold", "symbol": "GC=F", "correlation": -0.15, "label": "Diverging", "source": "estimated"},
+                {"asset": "DXY (USD)", "symbol": "DX-Y.NYB", "correlation": -0.45, "label": "Inverse", "source": "estimated"}
             ],
-            "insight": "📊 BTC trading as high-beta tech/risk asset"
+            "insight": "📊 BTC trading as high-beta tech/risk asset",
+            "calculation_method": "fallback estimates",
+            "last_updated": datetime.now().isoformat()
         }
     
     def _get_fallback_paxg_btc(self) -> Dict[str, Any]:
@@ -207,5 +448,4 @@ class CorrelationFetcher:
 
 
 # Global instance
-import asyncio
 correlation_fetcher = CorrelationFetcher()
