@@ -146,21 +146,25 @@ async def get_crypto_pulse() -> Dict[str, Any]:
 
 @router.get("/sectors")
 async def get_sector_data() -> Dict[str, Any]:
-    """Get sector rotation data with top 3 coins per sector."""
+    """Get sector rotation data with real 7-day performance."""
     # Fetch prices for all coins
     all_coins = []
     for sector_coins in SECTORS.values():
         all_coins.extend(sector_coins["coins"])
     all_coins = list(set(all_coins))
     
-    # Fetch prices with fallback
-    prices_result = await data_aggregator.fetch_multiple_prices(all_coins)
+    # Fetch prices and real 7-day returns concurrently
+    prices_result, returns_7d_data = await asyncio.gather(
+        data_aggregator.fetch_multiple_prices(all_coins),
+        data_aggregator.fetch_multiple_7d_returns(all_coins)
+    )
     prices = prices_result.get("prices", {})
+    
+    # Get BTC 7-day return for comparison
+    btc_return_7d = returns_7d_data.get("BTC", 0)
     
     # For each sector, calculate momentum and top 3 coins
     sector_data = []
-    btc_price_data = prices.get("BTC", {})
-    btc_change_7d = btc_price_data.get("change_24h", 0) * 7
     
     for sector_name, sector_info in SECTORS.items():
         sector_coins = sector_info["coins"]
@@ -170,28 +174,34 @@ async def get_sector_data() -> Dict[str, Any]:
         coin_details = []
         
         for coin in sector_coins:
-            if coin in prices:
-                price_info = prices[coin]
-                # Use 24h change as proxy for 7d (in production, fetch klines)
-                change_24h = price_info.get("change_24h", 0)
-                change_7d = change_24h * 7  # Rough approximation
-                vs_btc = change_7d - btc_change_7d
-                
-                # Simple momentum score
-                score = 50 + (change_7d * 2)
-                score = max(0, min(100, score))
-                
-                scores.append(score)
-                returns_7d.append(change_7d)
-                returns_vs_btc.append(vs_btc)
-                
-                coin_details.append({
-                    "symbol": coin,
-                    "return_7d": round(change_7d, 2),
-                    "vs_btc": round(vs_btc, 2),
-                    "price": price_info.get("price", 0),
-                    "momentum_score": score
-                })
+            # Use real 7-day return if available, fallback to price data approximation
+            change_7d = returns_7d_data.get(coin)
+            
+            if change_7d is None and coin in prices:
+                # Fallback: use 24h change × 7 if 7d klines not available
+                change_7d = prices[coin].get("change_24h", 0) * 7
+            elif change_7d is None:
+                continue  # Skip if no data at all
+            
+            price_info = prices.get(coin, {})
+            vs_btc = change_7d - btc_return_7d
+            
+            # Simple momentum score (0-100)
+            score = 50 + (change_7d * 2)
+            score = max(0, min(100, score))
+            
+            scores.append(score)
+            returns_7d.append(change_7d)
+            returns_vs_btc.append(vs_btc)
+            
+            coin_details.append({
+                "symbol": coin,
+                "return_7d": round(change_7d, 2),
+                "vs_btc": round(vs_btc, 2),
+                "price": price_info.get("price", 0),
+                "momentum_score": score,
+                "data_source": "7d_klines" if coin in returns_7d_data else "24h_approx"
+            })
         
         # Sort coins by 7d return to get top 3
         coin_details_sorted = sorted(coin_details, key=lambda x: x["return_7d"], reverse=True)
@@ -210,7 +220,7 @@ async def get_sector_data() -> Dict[str, Any]:
             "has_data": len(scores) > 0
         })
     
-    # Get BTC momentum
+    # Get BTC momentum (from L1 sector or direct)
     btc_momentum = next((s["momentum_score"] for s in sector_data if s["sector"] == "L1"), 50)
     
     # Get macro score
@@ -225,6 +235,7 @@ async def get_sector_data() -> Dict[str, Any]:
         "verdict": verdict,
         "btc_momentum": btc_momentum,
         "macro_score": macro_score,
+        "data_source": "Real 7-day klines from Binance",
         "timestamp": datetime.now().isoformat()
     }
 
