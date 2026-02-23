@@ -17,18 +17,24 @@ class CoinGeckoFetcher:
         self._last_request = None
         self._min_interval = 1.2  # Minimum seconds between requests (rate limit)
     
-    # CoinGecko IDs for mapping
+    # CoinGecko IDs for coins not on Binance/OKX
+    # Updated list based on actual availability
     COIN_IDS = {
-        "HYPE": "hyperliquid",
-        "VIRTUAL": "virtual-protocol",
-        "ZORA": "zora",
-        "SKY": "sky-mavis",
-        "SYRUP": "syrup",
-        "ETHFI": "ether-fi",
-        "WLFI": "world-liberty-financial",
-        "PUMP": "pump",
-        "LIT": "litentry",
-        "ASTER": "aster",
+        "HYPE": "hyperliquid",           # PERP sector
+        "VIRTUAL": "virtual-protocol",   # AI sector  
+        "ZORA": "zora-network",          # AI sector
+        "SKY": "sky-protocol",           # DeFi sector (not sky-mavis)
+        "SYRUP": "syrup-finance",        # DeFi sector
+        "ETHFI": "ether-fi",             # DeFi sector
+        "WLFI": "world-liberty-financial", # DeFi sector
+        "PUMP": "pump-fun",              # Meme sector
+        "LIT": "litentry",               # PERP sector
+        "ASTER": "aster-protocol",       # PERP sector
+        "AERO": "aerodrome-finance",     # DeFi sector
+        "MON": "mon-protocol",           # L1 sector
+        "PENGU": "pudgy-penguins",       # Meme sector
+        "SEI": "sei-network",            # L1 sector
+        "STK": "stakestone",             # L2 sector
     }
     
     async def _rate_limit(self):
