@@ -4,6 +4,9 @@ import { RefreshCw, TrendingUp, ChevronDown, ChevronUp, Trophy } from 'lucide-re
 function SectorRotation({ data }) {
   const [expandedSector, setExpandedSector] = useState(null)
 
+  // DEBUG
+  console.log('SectorRotation data:', data)
+
   if (!data) return null
 
   const { sectors, verdict, btc_momentum, macro_score } = data
@@ -156,7 +159,10 @@ function SectorRotation({ data }) {
                           </h4>
                           <div className="grid grid-cols-3 gap-4">
                             {sector.top_3_coins.map((coin, idx) => {
-                              // Ensure values are numbers, default to 0
+                              // DEBUG
+                              console.log(`Coin ${coin.symbol}:`, { return_7d: coin.return_7d, vs_btc: coin.vs_btc, data_source: coin.data_source })
+                              
+                              // Ensure values are numbers
                               const return7d = typeof coin.return_7d === 'number' ? coin.return_7d : 0
                               const vsBtc = typeof coin.vs_btc === 'number' ? coin.vs_btc : 0
                               
