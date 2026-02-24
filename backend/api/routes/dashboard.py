@@ -153,9 +153,9 @@ async def get_sector_data() -> Dict[str, Any]:
         all_coins.extend(sector_coins["coins"])
     all_coins = list(set(all_coins))
     
-    # Fetch prices (with CoinGecko fallback) and real 7-day returns concurrently
+    # Fetch prices (with KuCoin and CoinGecko fallbacks) and real 7-day returns concurrently
     prices_result, returns_7d_data = await asyncio.gather(
-        data_aggregator.fetch_multiple_prices_with_coingecko(all_coins),
+        data_aggregator.fetch_multiple_prices_with_fallbacks(all_coins),
         data_aggregator.fetch_multiple_7d_returns(all_coins)
     )
     prices = prices_result.get("prices", {})
@@ -197,6 +197,8 @@ async def get_sector_data() -> Dict[str, Any]:
             # Determine data source
             if coin in returns_7d_data:
                 data_source = "7d_klines"
+            elif price_info.get("source") == "kucoin":
+                data_source = "kucoin"
             elif price_info.get("source") == "coingecko":
                 data_source = "coingecko"
             else:

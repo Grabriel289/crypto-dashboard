@@ -6,6 +6,7 @@ import asyncio
 from config.sectors import SYMBOL_MAPPING, EXCHANGE_PRIORITY
 from data.fetchers.binance import binance_fetcher
 from data.fetchers.okx import okx_fetcher
+from data.fetchers.kucoin import kucoin_fetcher
 
 
 class DataAggregator:
@@ -52,19 +53,67 @@ class DataAggregator:
                 print(f"Error fetching {coin} from {exchange}: {e}")
                 continue
         
+        # Fallback to KuCoin
+        kucoin_symbol = SYMBOL_MAPPING.get("kucoin", {}).get(coin)
+        if kucoin_symbol:
+            try:
+                result = await kucoin_fetcher.fetch_price(kucoin_symbol)
+                if result:
+                    result["coin"] = coin
+                    self.price_cache[cache_key] = {
+                        "data": result,
+                        "timestamp": datetime.now()
+                    }
+                    return result
+            except Exception as e:
+                print(f"Error fetching {coin} from KuCoin: {e}")
+        
+        # Final fallback to CoinGecko
+        try:
+            from data.fetchers.coingecko import coingecko_fetcher
+            result = await coingecko_fetcher.fetch_price(coin)
+            if result:
+                result["coin"] = coin
+                self.price_cache[cache_key] = {
+                    "data": result,
+                    "timestamp": datetime.now()
+                }
+                return result
+        except Exception as e:
+            print(f"Error fetching {coin} from CoinGecko: {e}")
+        
         return None
     
-    async def fetch_multiple_prices_with_coingecko(self, coins: List[str]) -> Dict[str, Any]:
-        """Fetch prices for multiple coins, using CoinGecko as fallback for altcoins."""
-        # First try exchanges
+    async def fetch_multiple_prices_with_fallbacks(self, coins: List[str]) -> Dict[str, Any]:
+        """Fetch prices for multiple coins, using KuCoin and CoinGecko as fallbacks for altcoins."""
+        # First try Binance/OKX exchanges
         result = await self.fetch_multiple_prices(coins)
         prices = result.get("prices", {})
         
         # Find coins that weren't found
         missing_coins = [c for c in coins if c not in prices]
         
+        # Try KuCoin for missing coins
+        kucoin_results = {}
+        for coin in missing_coins[:]:
+            kucoin_symbol = SYMBOL_MAPPING.get("kucoin", {}).get(coin)
+            if kucoin_symbol:
+                try:
+                    price_data = await kucoin_fetcher.fetch_price(kucoin_symbol)
+                    if price_data:
+                        price_data["coin"] = coin
+                        kucoin_results[coin] = price_data
+                        prices[coin] = price_data
+                        self.price_cache[f"price_{coin}"] = {
+                            "data": price_data,
+                            "timestamp": datetime.now()
+                        }
+                        missing_coins.remove(coin)
+                except Exception as e:
+                    print(f"KuCoin fetch error for {coin}: {e}")
+        
+        # Final fallback to CoinGecko for remaining coins
         if missing_coins:
-            # Try CoinGecko batch fetch for missing coins
             try:
                 from data.fetchers.coingecko import coingecko_fetcher
                 cg_prices = await coingecko_fetcher.fetch_prices_batch(missing_coins)
@@ -72,7 +121,6 @@ class DataAggregator:
                 for coin, price_data in cg_prices.items():
                     price_data["coin"] = coin
                     prices[coin] = price_data
-                    # Update cache
                     self.price_cache[f"price_{coin}"] = {
                         "data": price_data,
                         "timestamp": datetime.now()
@@ -129,7 +177,7 @@ class DataAggregator:
         return await binance_fetcher.fetch_open_interest(symbol)
     
     async def fetch_7d_return(self, coin: str) -> Optional[float]:
-        """Fetch real 7-day return from klines data. Tries Binance, OKX, then CoinGecko."""
+        """Fetch real 7-day return from klines data. Tries Binance, OKX, KuCoin, then CoinGecko."""
         # Try Binance first
         binance_symbol = SYMBOL_MAPPING.get("binance", {}).get(coin)
         if binance_symbol:
@@ -157,7 +205,20 @@ class DataAggregator:
                 except Exception as e:
                     print(f"Error calculating 7d return for {coin} from OKX: {e}")
         
-        # Fallback to CoinGecko
+        # Fallback to KuCoin
+        kucoin_symbol = SYMBOL_MAPPING.get("kucoin", {}).get(coin)
+        if kucoin_symbol:
+            df = await kucoin_fetcher.fetch_klines(kucoin_symbol, interval="1day", limit=8)
+            if df is not None and len(df) >= 8:
+                try:
+                    price_7d_ago = df["close"].iloc[0]
+                    current_price = df["close"].iloc[-1]
+                    return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
+                    return return_7d
+                except Exception as e:
+                    print(f"Error calculating 7d return for {coin} from KuCoin: {e}")
+        
+        # Final fallback to CoinGecko
         try:
             from data.fetchers.coingecko import coingecko_fetcher
             return_7d = await coingecko_fetcher.fetch_7d_change(coin)
