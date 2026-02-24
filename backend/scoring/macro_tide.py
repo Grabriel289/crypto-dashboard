@@ -103,12 +103,12 @@ class MacroTideScorer:
         etf_flows = await farside_scraper.scrape_etf_flows()
         gold_cannibalization = farside_scraper.get_gold_cannibalization_signal(etf_flows)
         
-        leaks["gold_cannibalization"] = {
-            "active": gold_cannibalization["active"],
-            "status": gold_cannibalization["status"],
-            "detail": gold_cannibalization["detail"],
-            "flow_24h": gold_cannibalization.get("flow_24h")
-        }
+        # Update while preserving penalty key
+        leaks["gold_cannibalization"]["active"] = gold_cannibalization["active"]
+        leaks["gold_cannibalization"]["status"] = gold_cannibalization["status"]
+        leaks["gold_cannibalization"]["detail"] = gold_cannibalization["detail"]
+        if "flow_24h" in gold_cannibalization:
+            leaks["gold_cannibalization"]["flow_24h"] = gold_cannibalization["flow_24h"]
         
         # Policy Lag - simplified
         leaks["policy_lag"]["status"] = "🟡 PARTIAL"
