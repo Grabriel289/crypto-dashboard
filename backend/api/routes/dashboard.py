@@ -334,6 +334,7 @@ async def get_liquidation_heatmap(symbol: str = "BTCUSDT") -> Dict[str, Any]:
     return {
         "symbol": symbol,
         "current_price": heatmap.get("current_price"),
+        "source": heatmap.get("source", "unknown"),
         "fragility": heatmap.get("fragility"),
         "estimated": heatmap.get("estimated_liquidations"),
         "realized_24h": realized,
