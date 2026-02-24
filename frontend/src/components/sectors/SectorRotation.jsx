@@ -186,6 +186,7 @@ function SectorRotation({ data }) {
                                   {coin.data_source && (
                                     <div className="text-xs text-cyber-text-muted mt-1">
                                       {coin.data_source === '7d_klines' ? '✓ 7D' : 
+                                       coin.data_source === 'kucoin' ? '🔶 KuCoin' :
                                        coin.data_source === 'coingecko' ? '🌎 CoinGecko' : '~24h'}
                                     </div>
                                   )}
