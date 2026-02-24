@@ -39,7 +39,7 @@ def generate_action_items(
         if macro_score >= 2.0:
             actions.append({
                 "priority": "HIGH",
-                "emoji": "[R]",
+                "emoji": "🔴",
                 "action": "Selective accumulation of BTC",
                 "reason": "Extreme fear + negative funding + acceptable macro",
                 "condition": "Entry zone: current price ± 3%"
@@ -59,7 +59,7 @@ def generate_action_items(
     if fear_greed <= 20 and "DISTRIBUTION" in whale_signal:
         actions.append({
             "priority": "HIGH",
-            "emoji": "[R]",
+            "emoji": "🔴",
             "action": "Caution - conflicting signals",
             "reason": "Extreme fear (bullish) but whale distribution (bearish)",
             "condition": "Wait for confirmation before heavy accumulation"
@@ -73,7 +73,7 @@ def generate_action_items(
         sector = verdict.replace("🟢 ROTATE TO ", "")
         actions.append({
             "priority": "MEDIUM",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "action": f"Consider rotation to {sector}",
             "reason": sector_verdict.get("reason", ""),
             "condition": "Scale in gradually; 5-10% per day"
@@ -82,7 +82,7 @@ def generate_action_items(
     if verdict.startswith("❌"):
         actions.append({
             "priority": "MEDIUM",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "action": "Avoid altcoin rotation",
             "reason": "No sector outperforming BTC consistently",
             "condition": "Stay in BTC or stables"
@@ -99,7 +99,7 @@ def generate_action_items(
             if macro_score >= 2.5:
                 actions.append({
                     "priority": "MEDIUM",
-                    "emoji": "[Y]",
+                    "emoji": "🟡",
                     "action": f"Watch {sector_name} sector rotation",
                     "reason": f"{sector_name} up {vs_btc:+.2f}% vs BTC with supportive macro",
                     "condition": f"Consider {top_coin} on dips"
@@ -119,7 +119,7 @@ def generate_action_items(
     if fragility_composite >= 60:
         actions.append({
             "priority": "MEDIUM",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "action": "Reduce leverage",
             "reason": f"Market fragility elevated ({fragility_composite}/100)",
             "condition": "Max 2x leverage until fragility drops below 50"
@@ -128,7 +128,7 @@ def generate_action_items(
     if whale_signal == "DISTRIBUTION / NET SHORT":
         actions.append({
             "priority": "MEDIUM",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "action": "Tighten stop losses",
             "reason": "Whale distribution detected - smart money selling",
             "condition": "Trail stops at -5% to -7%"
@@ -136,7 +136,7 @@ def generate_action_items(
     elif whale_signal == "ACCUMULATION / NET LONG":
         actions.append({
             "priority": "LOW",
-            "emoji": "[N]",
+            "emoji": "⚪",
             "action": "Consider adding to positions",
             "reason": "Whale accumulation detected - smart money buying",
             "condition": "Scale in on 2-3% dips"
@@ -148,7 +148,7 @@ def generate_action_items(
     if macro_score < 2.0:
         actions.append({
             "priority": "HIGH",
-            "emoji": "[R]",
+            "emoji": "🔴",
             "action": "Defensive allocation",
             "reason": f"Macro score {macro_score}/5 = Risk-Off environment",
             "condition": "Increase stables to 30%+, reduce alt exposure"
@@ -156,7 +156,7 @@ def generate_action_items(
     elif macro_score >= 4.0:
         actions.append({
             "priority": "LOW",
-            "emoji": "[N]",
+            "emoji": "⚪",
             "action": "Aggressive allocation OK",
             "reason": f"Macro score {macro_score}/5 = Risk-On environment",
             "condition": "Can increase alt exposure to 40-50%"
@@ -168,7 +168,7 @@ def generate_action_items(
     if funding_bias == "bullish":
         actions.append({
             "priority": "MEDIUM",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "action": "Squeeze setup active",
             "reason": "Negative funding rates - shorts paying longs",
             "condition": "Watch for short squeeze opportunities"
@@ -176,7 +176,7 @@ def generate_action_items(
     elif funding_bias == "bearish":
         actions.append({
             "priority": "MEDIUM",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "action": "Avoid high leverage longs",
             "reason": "Overleveraged longs - potential for long squeeze",
             "condition": "Use max 3x leverage"

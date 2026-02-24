@@ -56,23 +56,23 @@ class MacroTideScorer:
             "details": {
                 "NFCI": {
                     "value": indicators.nfci.get("value") if indicators.nfci else None,
-                    "status": indicators.nfci.get("status", "[N]") if indicators.nfci else "[N]"
+                    "status": indicators.nfci.get("status", "⚪") if indicators.nfci else "⚪"
                 },
                 "HY_Spread": {
                     "value": indicators.hy_spread.get("value_pct") if indicators.hy_spread else None,
-                    "status": indicators.hy_spread.get("status", "[N]") if indicators.hy_spread else "[N]"
+                    "status": indicators.hy_spread.get("status", "⚪") if indicators.hy_spread else "⚪"
                 },
                 "MOVE": {
                     "value": indicators.move_index.get("value") if indicators.move_index else None,
-                    "status": indicators.move_index.get("status", "[N]") if indicators.move_index else "[N]"
+                    "status": indicators.move_index.get("status", "⚪") if indicators.move_index else "⚪"
                 },
                 "CuAu_Ratio": {
                     "value": indicators.cu_au_ratio.get("value") if indicators.cu_au_ratio else None,
-                    "status": indicators.cu_au_ratio.get("status", "[N]") if indicators.cu_au_ratio else "[N]"
+                    "status": indicators.cu_au_ratio.get("status", "⚪") if indicators.cu_au_ratio else "⚪"
                 },
                 "Net_Liquidity": {
                     "value": f"${indicators.net_liquidity.get('value_trillion', 0)}T" if indicators.net_liquidity else None,
-                    "status": indicators.net_liquidity.get("status", "[N]") if indicators.net_liquidity else "[N]"
+                    "status": indicators.net_liquidity.get("status", "⚪") if indicators.net_liquidity else "⚪"
                 }
             }
         }
@@ -96,14 +96,14 @@ class MacroTideScorer:
                     "status": "🔴 ACTIVE"
                 }
             else:
-                leaks["fiscal_dominance"]["status"] = "[G] OK"
+                leaks["fiscal_dominance"]["status"] = "🟢 OK"
         
         # Gold Cannibalization - simplified (would need BTC ETF flow data)
-        leaks["gold_cannibalization"]["status"] = "[G] OK"
+        leaks["gold_cannibalization"]["status"] = "🟢 OK"
         leaks["gold_cannibalization"]["detail"] = "Monitoring BTC ETF flows"
         
         # Policy Lag - simplified
-        leaks["policy_lag"]["status"] = "[Y] PARTIAL"
+        leaks["policy_lag"]["status"] = "🟡 PARTIAL"
         leaks["policy_lag"]["detail"] = "Seized only / CLARITY Act pending"
         
         total_penalty = sum(l["penalty"] for l in leaks.values())

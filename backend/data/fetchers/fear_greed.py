@@ -66,7 +66,7 @@ class FearGreedFetcher:
                 "signal": "NEUTRAL",
                 "probability": "Normal range",
                 "action": "Hold",
-                "emoji": "[N]"
+                "emoji": "⚪"
             }
         elif value <= 75:
             return {

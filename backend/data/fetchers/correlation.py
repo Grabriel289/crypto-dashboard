@@ -441,7 +441,7 @@ class CorrelationFetcher:
             "chart_data": [0.066, 0.067, 0.068, 0.069, 0.070, 0.071, 0.072],
             "trend": {
                 "signal": "GOLD OUTPERFORMING BTC",
-                "emoji": "[Y]",
+                "emoji": "🟡",
                 "bitgold": "[S] Consider defensive allocation"
             }
         }

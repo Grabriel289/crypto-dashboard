@@ -73,7 +73,7 @@ def should_rotate_to_sector(
             }
         else:
             return {
-                "signal": "[Y] WATCH",
+                "signal": "🟡 WATCH",
                 "action": "Good momentum but macro not fully supportive; small position OK",
                 "rotate": False
             }

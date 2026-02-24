@@ -196,16 +196,16 @@ def generate_heatmap_insight(
     # Fragility-based insight
     if fragility_score >= 75:
         fragility_insight = "CRITICAL: High probability of flash crash/squeeze"
-        emoji = "[R]"
+        emoji = "🔴"
     elif fragility_score >= 50:
         fragility_insight = "FRAGILE: Expect wicky price action"
-        emoji = "[O]"
+        emoji = "🟠"
     elif fragility_score >= 25:
         fragility_insight = "CAUTION: Standard market conditions"
-        emoji = "[Y]"
+        emoji = "🟡"
     else:
         fragility_insight = "STABLE: Safe for larger positions"
-        emoji = "[G]"
+        emoji = "🟢"
     
     insights.append(fragility_insight)
     

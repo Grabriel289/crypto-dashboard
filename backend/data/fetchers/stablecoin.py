@@ -84,7 +84,7 @@ class StablecoinFetcher:
             ],
             "total_supply": 206.3,
             "total_change_7d": 2.3,
-            "insight": "[G] Bullish: Stablecoins minting = New capital entering crypto"
+            "insight": "🟢 Bullish: Stablecoins minting = New capital entering crypto"
         }
 
 

@@ -38,7 +38,7 @@ class WhaleActivity:
         elif self.exchange_inflow_pct < -10:
             return {
                 "signal": "ACCUMULATION DETECTED",
-                "emoji": "[G]",
+                "emoji": "🟢",
                 "description": "Heavy exchange outflows",
                 "bias": "bullish"
             }

@@ -189,7 +189,7 @@ class FREDFetcher:
             # Scoring: YoY > 5% = 1.0pt, 0-5% = 0.5pt, < 0 = 0pt
             # Simplified: assume neutral for now
             score = 0.5
-            status = "[YELLOW]"
+            status = "🟡"
             
             return {
                 "value": net_liq,
