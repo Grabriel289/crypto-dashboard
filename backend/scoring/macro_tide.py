@@ -2,6 +2,7 @@
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from data.fetchers.fred import fred_fetcher
+from data.fetchers.yahoo_finance import yahoo_finance_fetcher
 
 
 @dataclass
@@ -30,10 +31,9 @@ class MacroTideScorer:
         indicators.fed_funds = await fred_fetcher.fetch_fed_funds()
         indicators.treasury_10y = await fred_fetcher.fetch_treasury_10y()
         
-        # For MOVE index and Cu/Au ratio, we'll use estimated values
-        # In production, you'd fetch from Yahoo Finance
-        indicators.move_index = {"value": 75, "score": 1.0, "status": "🟢", "estimated": True}
-        indicators.cu_au_ratio = {"value": 0.0012, "score": 0.5, "status": "🟡", "estimated": True}
+        # Fetch MOVE index and Cu/Au ratio from Yahoo Finance (real-time)
+        indicators.move_index = await yahoo_finance_fetcher.fetch_move_index()
+        indicators.cu_au_ratio = await yahoo_finance_fetcher.fetch_cu_au_ratio()
         
         return indicators
     
@@ -93,7 +93,7 @@ class MacroTideScorer:
                     "active": True,
                     "penalty": -0.5,
                     "detail": f"+{spread:.0f}bp gap",
-                    "status": "🔴 ACTIVE"
+                    "status": "[RED] ACTIVE"
                 }
             else:
                 leaks["fiscal_dominance"]["status"] = "🟢 OK"
@@ -117,27 +117,27 @@ class MacroTideScorer:
         """Classify market regime based on adjusted score."""
         if adjusted_score >= 4.0:
             return {
-                "regime": "🟢 HIGH TIDE / RISK-ON",
+                "regime": "[GREEN] HIGH TIDE / RISK-ON",
                 "stance": "Aggressive",
-                "emoji": "🟢"
+                "emoji": "[GREEN]"
             }
         elif adjusted_score >= 3.0:
             return {
-                "regime": "🟡 NEUTRAL",
+                "regime": "[YELLOW] NEUTRAL",
                 "stance": "Balanced",
-                "emoji": "🟡"
+                "emoji": "[YELLOW]"
             }
         elif adjusted_score >= 2.0:
             return {
-                "regime": "🟠 CAUTION / BLOCKED FLOW",
+                "regime": "[ORANGE] CAUTION / BLOCKED FLOW",
                 "stance": "Defensive",
-                "emoji": "🟠"
+                "emoji": "[ORANGE]"
             }
         else:
             return {
-                "regime": "🔴 LOW TIDE / RISK-OFF",
+                "regime": "[RED] LOW TIDE / RISK-OFF",
                 "stance": "Defensive",
-                "emoji": "🔴"
+                "emoji": "[RED]"
             }
     
     async def calculate_full_score(self) -> Dict[str, Any]:

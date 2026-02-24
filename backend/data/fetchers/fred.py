@@ -62,13 +62,13 @@ class FREDFetcher:
             # Scoring: < 0 = 1.0pt, 0-0.5 = 0.5pt, > 0.5 = 0pt
             if value < 0:
                 score = 1.0
-                status = "🟢"
+                status = "[GREEN]"
             elif value < 0.5:
                 score = 0.5
-                status = "🟡"
+                status = "[YELLOW]"
             else:
                 score = 0.0
-                status = "🔴"
+                status = "[RED]"
             
             return {
                 "value": value,
@@ -87,13 +87,13 @@ class FREDFetcher:
             # Scoring: < 3.5% = 1.0pt, 3.5-5.5% = 0.5pt, > 5.5% = 0pt
             if value < 3.5:
                 score = 1.0
-                status = "🟢"
+                status = "[GREEN]"
             elif value < 5.5:
                 score = 0.5
-                status = "🟡"
+                status = "[YELLOW]"
             else:
                 score = 0.0
-                status = "🔴"
+                status = "[RED]"
             
             return {
                 "value": value,
@@ -189,7 +189,7 @@ class FREDFetcher:
             # Scoring: YoY > 5% = 1.0pt, 0-5% = 0.5pt, < 0 = 0pt
             # Simplified: assume neutral for now
             score = 0.5
-            status = "🟡"
+            status = "[YELLOW]"
             
             return {
                 "value": net_liq,
