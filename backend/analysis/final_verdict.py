@@ -57,7 +57,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
         stance = {
             "text": "AGGRESSIVE",
             "color": "green",
-            "emoji": "🟢",
+            "emoji": "[G]",
             "bgColor": "rgba(0, 255, 136, 0.1)",
             "borderColor": "#00ff88"
         }
@@ -66,7 +66,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
         stance = {
             "text": "RISK-OFF / WAIT",
             "color": "red",
-            "emoji": "🔴",
+            "emoji": "[R]",
             "bgColor": "rgba(255, 68, 68, 0.1)",
             "borderColor": "#ff4444"
         }
@@ -75,7 +75,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
         stance = {
             "text": "DEFENSIVE ACCUMULATION",
             "color": "orange",
-            "emoji": "🟠",
+            "emoji": "[O]",
             "bgColor": "rgba(255, 165, 0, 0.1)",
             "borderColor": "#ffa500"
         }
@@ -84,7 +84,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
         stance = {
             "text": "BALANCED",
             "color": "yellow",
-            "emoji": "🟡",
+            "emoji": "[Y]",
             "bgColor": "rgba(255, 170, 0, 0.1)",
             "borderColor": "#ffaa00"
         }

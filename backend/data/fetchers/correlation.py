@@ -360,14 +360,14 @@ class CorrelationFetcher:
             insights.append("weak positive correlation with Gold")
         
         if insights:
-            return "📊 " + "; ".join(insights)
+            return "[C] " + "; ".join(insights)
         
         if highest and highest["correlation"] > 0.5:
-            return f"📊 BTC most correlated with {highest['asset']} ({highest['correlation']:.2f})"
+            return f"[C] BTC most correlated with {highest['asset']} ({highest['correlation']:.2f})"
         if lowest and lowest["correlation"] < -0.3:
-            return f"📊 BTC most inversely correlated with {lowest['asset']} ({lowest['correlation']:.2f})"
+            return f"[C] BTC most inversely correlated with {lowest['asset']} ({lowest['correlation']:.2f})"
         
-        return "📈 Mixed correlations — monitor for regime shift"
+        return "[UP] Mixed correlations — monitor for regime shift"
     
     async def get_paxg_btc(self) -> Dict[str, Any]:
         """Get PAXG/BTC ratio data."""
@@ -392,20 +392,20 @@ class CorrelationFetcher:
         if change_7d > 2 and change_30d > 5:
             trend = {
                 "signal": "GOLD OUTPERFORMING BTC",
-                "emoji": "🟡",
-                "bitgold": "🛡️ Consider defensive allocation"
+                "emoji": "[Y]",
+                "bitgold": "[S] Consider defensive allocation"
             }
         elif change_7d < -2 and change_30d < -5:
             trend = {
                 "signal": "BTC OUTPERFORMING GOLD",
-                "emoji": "🟢",
-                "bitgold": "🚀 Maintain BTC allocation"
+                "emoji": "[G]",
+                "bitgold": "[>>] Maintain BTC allocation"
             }
         else:
             trend = {
                 "signal": "NEUTRAL",
-                "emoji": "⚪",
-                "bitgold": "⚖️ Follow CDC signal"
+                "emoji": "[N]",
+                "bitgold": "[B] Follow CDC signal"
             }
         
         return {
@@ -426,7 +426,7 @@ class CorrelationFetcher:
                 {"asset": "Gold", "symbol": "GC=F", "correlation": -0.15, "label": "Diverging", "source": "estimated"},
                 {"asset": "DXY (USD)", "symbol": "DX-Y.NYB", "correlation": -0.45, "label": "Inverse", "source": "estimated"}
             ],
-            "insight": "📊 BTC trading as high-beta tech/risk asset",
+            "insight": "[C] BTC trading as high-beta tech/risk asset",
             "calculation_method": "fallback estimates",
             "last_updated": datetime.now().isoformat()
         }
@@ -441,8 +441,8 @@ class CorrelationFetcher:
             "chart_data": [0.066, 0.067, 0.068, 0.069, 0.070, 0.071, 0.072],
             "trend": {
                 "signal": "GOLD OUTPERFORMING BTC",
-                "emoji": "🟡",
-                "bitgold": "🛡️ Consider defensive allocation"
+                "emoji": "[Y]",
+                "bitgold": "[S] Consider defensive allocation"
             }
         }
 

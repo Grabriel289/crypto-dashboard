@@ -84,13 +84,13 @@ class YahooFinanceFetcher:
             # > 100 = stressed = 0pt (risk-off)
             if value < 80:
                 score = 1.0
-                status = "🟢"
+                status = "[G]"
             elif value < 100:
                 score = 0.5
-                status = "🟡"
+                status = "[Y]"
             else:
                 score = 0.0
-                status = "🔴"
+                status = "[R]"
             
             return {
                 "value": value,

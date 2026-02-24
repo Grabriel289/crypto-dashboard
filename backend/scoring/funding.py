@@ -12,7 +12,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     if rate_pct < -0.03:
         return {
             "signal": "STRONG SQUEEZE SETUP",
-            "emoji": "🟢",
+            "emoji": "[G]",
             "bias": "bullish",
             "description": "Shorts paying longs heavily",
             "color": "#00ff88"
@@ -28,7 +28,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0.03:
         return {
             "signal": "NEUTRAL",
-            "emoji": "🟡",
+            "emoji": "[Y]",
             "bias": "neutral",
             "description": "Balanced positioning",
             "color": "#ffaa00"
@@ -36,7 +36,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0.08:
         return {
             "signal": "OVERLEVERAGED LONGS",
-            "emoji": "🟠",
+            "emoji": "[O]",
             "bias": "bearish",
             "description": "Pullback risk elevated",
             "color": "#ff6b35"
@@ -44,7 +44,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     else:
         return {
             "signal": "EXTREME EUPHORIA",
-            "emoji": "🔴",
+            "emoji": "[R]",
             "bias": "bearish",
             "description": "Correction imminent",
             "color": "#ff4444"

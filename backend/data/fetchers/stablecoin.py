@@ -48,7 +48,7 @@ class StablecoinFetcher:
                 "supply": round(current_supply / 1e9, 2),  # In billions
                 "change_7d": round(change_7d / 1e9, 2),
                 "status": "MINTING" if change_7d >= 0 else "REDEEMING",
-                "emoji": "🟢" if change_7d >= 0 else "🔴"
+                "emoji": "[G]" if change_7d >= 0 else "[R]"
             })
             found_symbols.add(symbol)
         
@@ -60,11 +60,11 @@ class StablecoinFetcher:
         
         # Generate insight
         if total_change > 0:
-            insight = "🟢 Bullish: Stablecoins minting = New capital entering crypto"
+            insight = "[G] Bullish: Stablecoins minting = New capital entering crypto"
         elif total_change < 0:
-            insight = "🔴 Bearish: Stablecoins redeeming = Capital exiting crypto"
+            insight = "[R] Bearish: Stablecoins redeeming = Capital exiting crypto"
         else:
-            insight = "⚪ Neutral: Stablecoin supply stable"
+            insight = "[N] Neutral: Stablecoin supply stable"
         
         return {
             "stablecoins": stablecoins,
@@ -77,14 +77,14 @@ class StablecoinFetcher:
         """Fallback data when API fails."""
         return {
             "stablecoins": [
-                {"symbol": "USDT", "supply": 143.2, "change_7d": 1.5, "status": "MINTING", "emoji": "🟢"},
-                {"symbol": "USDC", "supply": 52.8, "change_7d": 0.9, "status": "MINTING", "emoji": "🟢"},
-                {"symbol": "USDS", "supply": 4.2, "change_7d": 0.2, "status": "MINTING", "emoji": "🟢"},
-                {"symbol": "USDe", "supply": 6.1, "change_7d": -0.3, "status": "REDEEMING", "emoji": "🔴"}
+                {"symbol": "USDT", "supply": 143.2, "change_7d": 1.5, "status": "MINTING", "emoji": "[G]"},
+                {"symbol": "USDC", "supply": 52.8, "change_7d": 0.9, "status": "MINTING", "emoji": "[G]"},
+                {"symbol": "USDS", "supply": 4.2, "change_7d": 0.2, "status": "MINTING", "emoji": "[G]"},
+                {"symbol": "USDe", "supply": 6.1, "change_7d": -0.3, "status": "REDEEMING", "emoji": "[R]"}
             ],
             "total_supply": 206.3,
             "total_change_7d": 2.3,
-            "insight": "🟢 Bullish: Stablecoins minting = New capital entering crypto"
+            "insight": "[G] Bullish: Stablecoins minting = New capital entering crypto"
         }
 
 

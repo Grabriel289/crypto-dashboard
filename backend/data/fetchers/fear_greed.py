@@ -42,7 +42,7 @@ class FearGreedFetcher:
                 "signal": "BOTTOM_SIGNAL",
                 "probability": "70% local bottom",
                 "action": "Accumulate",
-                "emoji": "😱"
+                "emoji": "[R]"
             }
         elif value <= 25:
             return {
@@ -50,7 +50,7 @@ class FearGreedFetcher:
                 "signal": "CAUTIOUS_BULLISH",
                 "probability": "50% bottom forming",
                 "action": "Selective buying",
-                "emoji": "😰"
+                "emoji": "[Y]"
             }
         elif value <= 45:
             return {
@@ -58,7 +58,7 @@ class FearGreedFetcher:
                 "signal": "NEUTRAL",
                 "probability": "Normal range",
                 "action": "Hold",
-                "emoji": "😐"
+                "emoji": "[N]"
             }
         elif value <= 55:
             return {
@@ -66,7 +66,7 @@ class FearGreedFetcher:
                 "signal": "NEUTRAL",
                 "probability": "Normal range",
                 "action": "Hold",
-                "emoji": "😐"
+                "emoji": "[N]"
             }
         elif value <= 75:
             return {
@@ -74,7 +74,7 @@ class FearGreedFetcher:
                 "signal": "CAUTIOUS_BEARISH",
                 "probability": "Pullback risk",
                 "action": "Take some profits",
-                "emoji": "🤑"
+                "emoji": "[G]"
             }
         else:
             return {
@@ -82,7 +82,7 @@ class FearGreedFetcher:
                 "signal": "TOP_SIGNAL",
                 "probability": "65% local top",
                 "action": "Take profits",
-                "emoji": "🚀"
+                "emoji": "[>>]"
             }
 
 

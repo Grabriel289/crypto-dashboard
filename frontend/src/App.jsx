@@ -9,7 +9,6 @@ import ActionItems from './components/actions/ActionItems'
 import FinalVerdict from './components/actions/FinalVerdict'
 import ConflictingSignals from './components/alerts/ConflictingSignals'
 import KeyLevelsCDC from './components/indicators/KeyLevelsCDC'
-import LiquidationHeatmap from './components/indicators/LiquidationHeatmap'
 import StablecoinFlow from './components/indicators/StablecoinFlow'
 import EconomicCalendar from './components/indicators/EconomicCalendar'
 import CorrelationMatrix from './components/indicators/CorrelationMatrix'
@@ -102,11 +101,6 @@ function App() {
           {/* Section: Key Levels & CDC Signal */}
           <section className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
             <KeyLevelsCDC data={data?.key_levels} />
-          </section>
-          
-          {/* Section: Liquidation Heatmap */}
-          <section className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
-            <LiquidationHeatmap data={data?.liquidation} />
           </section>
           
           {/* Section: Stablecoin Flow */}

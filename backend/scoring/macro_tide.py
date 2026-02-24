@@ -56,23 +56,23 @@ class MacroTideScorer:
             "details": {
                 "NFCI": {
                     "value": indicators.nfci.get("value") if indicators.nfci else None,
-                    "status": indicators.nfci.get("status", "⚪") if indicators.nfci else "⚪"
+                    "status": indicators.nfci.get("status", "[N]") if indicators.nfci else "[N]"
                 },
                 "HY_Spread": {
                     "value": indicators.hy_spread.get("value_pct") if indicators.hy_spread else None,
-                    "status": indicators.hy_spread.get("status", "⚪") if indicators.hy_spread else "⚪"
+                    "status": indicators.hy_spread.get("status", "[N]") if indicators.hy_spread else "[N]"
                 },
                 "MOVE": {
                     "value": indicators.move_index.get("value") if indicators.move_index else None,
-                    "status": indicators.move_index.get("status", "⚪") if indicators.move_index else "⚪"
+                    "status": indicators.move_index.get("status", "[N]") if indicators.move_index else "[N]"
                 },
                 "CuAu_Ratio": {
                     "value": indicators.cu_au_ratio.get("value") if indicators.cu_au_ratio else None,
-                    "status": indicators.cu_au_ratio.get("status", "⚪") if indicators.cu_au_ratio else "⚪"
+                    "status": indicators.cu_au_ratio.get("status", "[N]") if indicators.cu_au_ratio else "[N]"
                 },
                 "Net_Liquidity": {
                     "value": f"${indicators.net_liquidity.get('value_trillion', 0)}T" if indicators.net_liquidity else None,
-                    "status": indicators.net_liquidity.get("status", "⚪") if indicators.net_liquidity else "⚪"
+                    "status": indicators.net_liquidity.get("status", "[N]") if indicators.net_liquidity else "[N]"
                 }
             }
         }
@@ -96,14 +96,14 @@ class MacroTideScorer:
                     "status": "[RED] ACTIVE"
                 }
             else:
-                leaks["fiscal_dominance"]["status"] = "🟢 OK"
+                leaks["fiscal_dominance"]["status"] = "[G] OK"
         
         # Gold Cannibalization - simplified (would need BTC ETF flow data)
-        leaks["gold_cannibalization"]["status"] = "🟢 OK"
+        leaks["gold_cannibalization"]["status"] = "[G] OK"
         leaks["gold_cannibalization"]["detail"] = "Monitoring BTC ETF flows"
         
         # Policy Lag - simplified
-        leaks["policy_lag"]["status"] = "🟡 PARTIAL"
+        leaks["policy_lag"]["status"] = "[Y] PARTIAL"
         leaks["policy_lag"]["detail"] = "Seized only / CLARITY Act pending"
         
         total_penalty = sum(l["penalty"] for l in leaks.values())
@@ -119,25 +119,25 @@ class MacroTideScorer:
             return {
                 "regime": "[GREEN] HIGH TIDE / RISK-ON",
                 "stance": "Aggressive",
-                "emoji": "🟢"
+                "emoji": "[G]"
             }
         elif adjusted_score >= 3.0:
             return {
                 "regime": "[YELLOW] NEUTRAL",
                 "stance": "Balanced",
-                "emoji": "🟡"
+                "emoji": "[Y]"
             }
         elif adjusted_score >= 2.0:
             return {
                 "regime": "[ORANGE] CAUTION / BLOCKED FLOW",
                 "stance": "Defensive",
-                "emoji": "🟠"
+                "emoji": "[O]"
             }
         else:
             return {
                 "regime": "[RED] LOW TIDE / RISK-OFF",
                 "stance": "Defensive",
-                "emoji": "🔴"
+                "emoji": "[R]"
             }
     
     async def calculate_full_score(self) -> Dict[str, Any]:

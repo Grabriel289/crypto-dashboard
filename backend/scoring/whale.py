@@ -16,7 +16,7 @@ class WhaleActivity:
         if self.oi_change_24h_pct > 5 and self.exchange_inflow_pct > 5:
             return {
                 "signal": "DISTRIBUTION / NET SHORT",
-                "emoji": "🔴",
+                "emoji": "[R]",
                 "description": "OI rising + exchange inflows = distribution",
                 "bias": "bearish"
             }
@@ -24,28 +24,28 @@ class WhaleActivity:
         elif self.oi_change_24h_pct < -5 and self.exchange_inflow_pct < -5:
             return {
                 "signal": "ACCUMULATION / NET LONG",
-                "emoji": "🟢",
+                "emoji": "[G]",
                 "description": "OI falling + exchange outflows = accumulation",
                 "bias": "bullish"
             }
         elif self.exchange_inflow_pct > 10:
             return {
                 "signal": "DISTRIBUTION DETECTED",
-                "emoji": "🟠",
+                "emoji": "[O]",
                 "description": "Heavy exchange inflows",
                 "bias": "bearish"
             }
         elif self.exchange_inflow_pct < -10:
             return {
                 "signal": "ACCUMULATION DETECTED",
-                "emoji": "🟢",
+                "emoji": "[G]",
                 "description": "Heavy exchange outflows",
                 "bias": "bullish"
             }
         else:
             return {
                 "signal": "NEUTRAL",
-                "emoji": "🟡",
+                "emoji": "[Y]",
                 "description": "No clear whale signal",
                 "bias": "neutral"
             }
