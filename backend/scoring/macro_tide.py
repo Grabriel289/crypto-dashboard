@@ -90,27 +90,30 @@ class MacroTideScorer:
         if indicators.treasury_10y and indicators.fed_funds:
             spread = indicators.treasury_10y.get("value", 0) - indicators.fed_funds.get("value", 0)
             if spread > 0.25:
-                leaks["fiscal_dominance"] = {
-                    "active": True,
-                    "penalty": -0.5,
-                    "detail": f"+{spread:.0f}bp gap",
-                    "status": "🔴 ACTIVE"
-                }
+                leaks["fiscal_dominance"]["active"] = True
+                leaks["fiscal_dominance"]["penalty"] = -0.5
+                leaks["fiscal_dominance"]["detail"] = f"+{spread:.0f}bp gap"
+                leaks["fiscal_dominance"]["status"] = "🔴 ACTIVE"
             else:
+                leaks["fiscal_dominance"]["active"] = False
+                leaks["fiscal_dominance"]["penalty"] = 0.0
                 leaks["fiscal_dominance"]["status"] = "🟢 OK"
         
         # Gold Cannibalization - using real BTC ETF flow data from farside.co.uk
         etf_flows = await farside_scraper.scrape_etf_flows()
         gold_cannibalization = farside_scraper.get_gold_cannibalization_signal(etf_flows)
         
-        # Update while preserving penalty key
+        # Update fields while preserving penalty (set to 0 for this indicator)
         leaks["gold_cannibalization"]["active"] = gold_cannibalization["active"]
+        leaks["gold_cannibalization"]["penalty"] = 0.0  # No penalty, just monitoring
         leaks["gold_cannibalization"]["status"] = gold_cannibalization["status"]
         leaks["gold_cannibalization"]["detail"] = gold_cannibalization["detail"]
         if "flow_24h" in gold_cannibalization:
             leaks["gold_cannibalization"]["flow_24h"] = gold_cannibalization["flow_24h"]
         
-        # Policy Lag - simplified
+        # Policy Lag - simplified (no penalty, just monitoring)
+        leaks["policy_lag"]["active"] = False
+        leaks["policy_lag"]["penalty"] = 0.0
         leaks["policy_lag"]["status"] = "🟡 PARTIAL"
         leaks["policy_lag"]["detail"] = "Seized only / CLARITY Act pending"
         
