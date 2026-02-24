@@ -48,6 +48,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add cache-control headers to prevent caching of API responses
+@app.middleware("http")
+async def add_cache_control_headers(request, call_next):
+    response = await call_next(request)
+    # Don't cache API responses
+    if request.url.path.startswith("/api"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 # API routes
 app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
 
