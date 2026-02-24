@@ -117,7 +117,7 @@ class MacroTideScorer:
         leaks["policy_lag"]["status"] = "🟡 PARTIAL"
         leaks["policy_lag"]["detail"] = "Seized only / CLARITY Act pending"
         
-        total_penalty = sum(l.get("penalty", 0) for l in leaks.values())
+        total_penalty = sum(l["penalty"] for l in leaks.values())  # All entries now guarantee penalty key
         
         return {
             "leaks": leaks,
