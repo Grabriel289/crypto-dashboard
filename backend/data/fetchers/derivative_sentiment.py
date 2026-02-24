@@ -131,14 +131,14 @@ class DerivativeSentimentFetcher:
         if btc_whale == "LONG" and eth_whale == "LONG" and oi_increasing:
             return {
                 "signal": "ACCUMULATION",
-                "emoji": "[G]",
+                "emoji": "🟢",
                 "color": "green",
                 "description": "Smart money accumulating — OI rising with long bias"
             }
         elif btc_whale == "SHORT" and eth_whale == "SHORT" and oi_decreasing:
             return {
                 "signal": "DISTRIBUTION",
-                "emoji": "[R]",
+                "emoji": "🔴",
                 "color": "red",
                 "description": "Smart money distributing — OI falling with short bias"
             }
@@ -146,21 +146,21 @@ class DerivativeSentimentFetcher:
             squeeze_type = "SHORT SQUEEZE" if analysis.get("BTCUSDT", {}).get("retail_bias") == "LONG" else "LONG SQUEEZE"
             return {
                 "signal": "SQUEEZE SETUP",
-                "emoji": "[Y]",
+                "emoji": "🟡",
                 "color": "yellow",
                 "description": f"Retail vs Smart Money divergence — potential {squeeze_type}"
             }
         elif (extreme_retail_long or extreme_retail_short) and oi_decreasing:
             return {
                 "signal": "LEVERAGE FLUSH",
-                "emoji": "[B]",
+                "emoji": "⚖️",
                 "color": "blue",
                 "description": "Extreme positioning + falling OI — liquidations likely"
             }
         else:
             return {
                 "signal": "NEUTRAL",
-                "emoji": "[N]",
+                "emoji": "⚪",
                 "color": "gray",
                 "description": "No clear derivative sentiment bias"
             }
@@ -183,14 +183,14 @@ class DerivativeSentimentFetcher:
             age = datetime.now() - scraped_at
             
             if age < timedelta(hours=24):
-                print(f"[OK] Using CoinGlass cache from {scraped_at.strftime('%Y-%m-%d %H:%M')}")
+                print(f"✅ Using CoinGlass cache from {scraped_at.strftime('%Y-%m-%d %H:%M')}")
                 return cache.get("coins", {})
             else:
-                print(f"[D] CoinGlass cache expired ({age.total_seconds()/3600:.1f}h old)")
+                print(f"📅 CoinGlass cache expired ({age.total_seconds()/3600:.1f}h old)")
                 return {}
                 
         except Exception as e:
-            print(f"[X] Error loading CoinGlass cache: {e}")
+            print(f"❌ Error loading CoinGlass cache: {e}")
             return {}
     
     async def get_sentiment(self) -> Dict[str, Any]:
@@ -201,10 +201,10 @@ class DerivativeSentimentFetcher:
         coinglass_data = self.load_coinglass_cache()
         
         if coinglass_data:
-            print("[DATA] Using scraped data")
+            print("[DATA] Using scraped data"))
             results = coinglass_data
         else:
-            print("[CoinGlass] No cache. Trying Binance API...")
+            print("🔍 No CoinGlass cache. Trying Binance API...")
             
             for symbol in self.SYMBOLS:
                 try:

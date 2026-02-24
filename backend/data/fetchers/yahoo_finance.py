@@ -84,13 +84,13 @@ class YahooFinanceFetcher:
             # > 100 = stressed = 0pt (risk-off)
             if value < 80:
                 score = 1.0
-                status = "[G]"
+                status = "🟢"
             elif value < 100:
                 score = 0.5
-                status = "[Y]"
+                status = "🟡"
             else:
                 score = 0.0
-                status = "[R]"
+                status = "🔴"
             
             return {
                 "value": value,
@@ -127,13 +127,13 @@ class YahooFinanceFetcher:
             # Ratio < 0.0020 = weak = 0pt
             if ratio > 0.0025:
                 score = 1.0
-                status = "[GREEN]"
+                status = "🟢"
             elif ratio > 0.0020:
                 score = 0.5
-                status = "[YELLOW]"
+                status = "🟡"
             else:
                 score = 0.0
-                status = "[RED]"
+                status = "🔴"
             
             return {
                 "value": round(ratio, 6),

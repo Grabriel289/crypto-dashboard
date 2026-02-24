@@ -360,7 +360,7 @@ class CorrelationFetcher:
             insights.append("weak positive correlation with Gold")
         
         if insights:
-            return "[C] " + "; ".join(insights)
+            return "📊 " + "; ".join(insights)
         
         if highest and highest["correlation"] > 0.5:
             return f"[C] BTC most correlated with {highest['asset']} ({highest['correlation']:.2f})"
@@ -392,20 +392,20 @@ class CorrelationFetcher:
         if change_7d > 2 and change_30d > 5:
             trend = {
                 "signal": "GOLD OUTPERFORMING BTC",
-                "emoji": "[Y]",
-                "bitgold": "[S] Consider defensive allocation"
+                "emoji": "🟡",
+                "bitgold": "💾 Consider defensive allocation"
             }
         elif change_7d < -2 and change_30d < -5:
             trend = {
                 "signal": "BTC OUTPERFORMING GOLD",
-                "emoji": "[G]",
-                "bitgold": "[>>] Maintain BTC allocation"
+                "emoji": "🟢",
+                "bitgold": "🚀 Maintain BTC allocation"
             }
         else:
             trend = {
                 "signal": "NEUTRAL",
-                "emoji": "[N]",
-                "bitgold": "[B] Follow CDC signal"
+                "emoji": "⚪",
+                "bitgold": "⚖️ Follow CDC signal"
             }
         
         return {

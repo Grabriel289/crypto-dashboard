@@ -103,7 +103,7 @@ class LiquidationWebSocketCollector:
                 self._buffer.append(liquidation)
             
             # Print for monitoring
-            emoji = '[R]' if liquidation["side"] == "LONG" else '[G]'
+            emoji = '🔴' if liquidation["side"] == "LONG" else '🟢'
             print(f"{emoji} {liquidation['side']} LIQ: {liquidation['symbol']} "
                   f"${liquidation['usd_value']:,.0f} @ ${liquidation['price']:,.0f}")
             
@@ -144,7 +144,7 @@ class LiquidationWebSocketCollector:
             self._last_flush = datetime.now()
         
         # For now, just log - in production this would insert to database
-        print(f"[S] Buffer flush: {len(buffer_copy)} liquidations")
+        print(f"💾 Buffer flush: {len(buffer_copy)} liquidations")
         
         # TODO: Insert to database
         # for liq in buffer_copy:
@@ -154,11 +154,11 @@ class LiquidationWebSocketCollector:
         """Connect to WebSocket and listen for liquidations."""
         while self.running:
             try:
-                print(f"[C] Connecting to Binance Liquidation Stream...")
+                print(f"📊 Connecting to Binance Liquidation Stream...")
                 
                 async with websockets.connect(self.WEBSOCKET_URL) as ws:
                     self.ws = ws
-                    print("[OK] Connected to Binance Liquidation Stream")
+                    print("✅ Connected to Binance Liquidation Stream")
                     
                     async for message in ws:
                         if not self.running:
@@ -166,10 +166,10 @@ class LiquidationWebSocketCollector:
                         await self._process_message(message)
                         
             except websockets.exceptions.ConnectionClosed:
-                print("[!] WebSocket closed, reconnecting in 5 seconds...")
+                print("⚠️ WebSocket closed, reconnecting in 5 seconds...")
                 await asyncio.sleep(5)
             except Exception as e:
-                print(f"[X] WebSocket error: {e}, reconnecting in 5 seconds...")
+                print(f"❌ WebSocket error: {e}, reconnecting in 5 seconds...")
                 await asyncio.sleep(5)
     
     async def start(self):
@@ -187,7 +187,7 @@ class LiquidationWebSocketCollector:
         self.running = True
         thread = threading.Thread(target=self.start_sync, daemon=True)
         thread.start()
-        print("[>>] Started liquidation collector in background")
+        print("🚀 Started liquidation collector in background")
         return thread
     
     async def stop(self):
@@ -196,7 +196,7 @@ class LiquidationWebSocketCollector:
         if self.ws:
             await self.ws.close()
         await self._flush_buffer()
-        print("[STOP] Liquidation collector stopped")
+        print("🛑 Liquidation collector stopped")
     
     def get_stats(self) -> Dict[str, Any]:
         """Get collection statistics."""

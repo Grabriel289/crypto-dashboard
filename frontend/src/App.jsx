@@ -9,6 +9,7 @@ import ActionItems from './components/actions/ActionItems'
 import FinalVerdict from './components/actions/FinalVerdict'
 import ConflictingSignals from './components/alerts/ConflictingSignals'
 import KeyLevelsCDC from './components/indicators/KeyLevelsCDC'
+import LiquidationHeatmap from './components/indicators/LiquidationHeatmap'
 import StablecoinFlow from './components/indicators/StablecoinFlow'
 import EconomicCalendar from './components/indicators/EconomicCalendar'
 import CorrelationMatrix from './components/indicators/CorrelationMatrix'
@@ -26,7 +27,7 @@ function App() {
   const fetchData = async () => {
     try {
       setRefreshing(true)
-      const response = await axios.get(`${API_URL}/api/full`)
+      const response = await axios.get(`${API_URL}/api/full?t=${Date.now()}`)
       setData(response.data)
       setLastUpdated(new Date())
       setError(null)
@@ -101,6 +102,11 @@ function App() {
           {/* Section: Key Levels & CDC Signal */}
           <section className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
             <KeyLevelsCDC data={data?.key_levels} />
+          </section>
+          
+          {/* Section: Liquidation Heatmap */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.1s' }}>
+            <LiquidationHeatmap data={data?.liquidation} />
           </section>
           
           {/* Section: Stablecoin Flow */}

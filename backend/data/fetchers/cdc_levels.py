@@ -51,16 +51,16 @@ class CDCFetcher:
         if (current_price > current_ema12 and 
             current_price > current_ema26 and 
             current_ema12 > current_ema26):
-            return {"signal": "BULLISH", "emoji": "[G]", "color": "green"}
+            return {"signal": "BULLISH", "emoji": "🟢", "color": "green"}
         
         # BEARISH: Price < EMA12 AND Price < EMA26 AND EMA12 < EMA26
         if (current_price < current_ema12 and 
             current_price < current_ema26 and 
             current_ema12 < current_ema26):
-            return {"signal": "BEARISH", "emoji": "[R]", "color": "red"}
+            return {"signal": "BEARISH", "emoji": "🔴", "color": "red"}
         
         # NEUTRAL: Mixed conditions
-        return {"signal": "NEUTRAL", "emoji": "[Y]", "color": "yellow"}
+        return {"signal": "NEUTRAL", "emoji": "🟡", "color": "yellow"}
     
     def detect_order_blocks(self, candles: List[Dict]) -> Dict[str, Any]:
         """
@@ -252,7 +252,7 @@ class CDCFetcher:
         return {
             "symbol": symbol.replace("USDT", ""),
             "price": base_price,
-            "cdc_signal": {"signal": "NEUTRAL", "emoji": "[Y]", "color": "yellow"},
+            "cdc_signal": {"signal": "NEUTRAL", "emoji": "🟡", "color": "yellow"},
             "levels": {
                 "r2": int(base_price * 1.06),
                 "r1": int(base_price * 1.03),

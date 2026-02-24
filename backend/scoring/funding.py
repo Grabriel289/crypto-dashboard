@@ -12,7 +12,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     if rate_pct < -0.03:
         return {
             "signal": "STRONG SQUEEZE SETUP",
-            "emoji": "[G]",
+            "emoji": "🟢",
             "bias": "bullish",
             "description": "Shorts paying longs heavily",
             "color": "#00ff88"
@@ -20,7 +20,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0:
         return {
             "signal": "SQUEEZE SETUP",
-            "emoji": "[GREEN]",
+            "emoji": "🟢",
             "bias": "bullish",
             "description": "Negative funding; shorts dominant",
             "color": "#00cc6a"
@@ -28,7 +28,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0.03:
         return {
             "signal": "NEUTRAL",
-            "emoji": "[Y]",
+            "emoji": "🟡",
             "bias": "neutral",
             "description": "Balanced positioning",
             "color": "#ffaa00"
@@ -36,7 +36,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0.08:
         return {
             "signal": "OVERLEVERAGED LONGS",
-            "emoji": "[O]",
+            "emoji": "🟠",
             "bias": "bearish",
             "description": "Pullback risk elevated",
             "color": "#ff6b35"
@@ -44,7 +44,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     else:
         return {
             "signal": "EXTREME EUPHORIA",
-            "emoji": "[R]",
+            "emoji": "🔴",
             "bias": "bearish",
             "description": "Correction imminent",
             "color": "#ff4444"
@@ -57,7 +57,7 @@ def aggregate_funding_signals(funding_data: Dict[str, Dict]) -> Dict[str, Any]:
         return {
             "overall_signal": "NEUTRAL",
             "bias": "neutral",
-            "emoji": "[YELLOW]"
+            "emoji": "🟡"
         }
     
     # Count biases
@@ -77,7 +77,7 @@ def aggregate_funding_signals(funding_data: Dict[str, Dict]) -> Dict[str, Any]:
         return {
             "overall_signal": "OVERLEVERAGED",
             "bias": "bearish",
-            "emoji": "[ORANGE]",
+            "emoji": "🟠",
             "description": "Longs paying shorts - caution"
         }
     else:

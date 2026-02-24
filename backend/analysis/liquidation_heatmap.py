@@ -61,7 +61,7 @@ def estimate_liquidation_heatmap(
     """
     Estimate liquidation levels from OI + leverage assumptions.
     
-    [!] DISCLAIMER: This is ESTIMATED, not actual pending liquidations.
+    ⚠️ DISCLAIMER: This is ESTIMATED, not actual pending liquidations.
     Calculated from OI + leverage distribution assumptions.
     Accuracy ~60-70%.
     

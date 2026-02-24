@@ -52,13 +52,13 @@ def should_rotate_to_sector(
     if macro_adjusted_score < 2.0:
         if score_diff > 15 and vs_btc_return > 5:
             return {
-                "signal": "[Y] WATCH",
+                "signal": "🟡 WATCH",
                 "action": "Strong momentum but macro weak; wait for improvement",
                 "rotate": False
             }
         else:
             return {
-                "signal": "[R] AVOID",
+                "signal": "🔴 AVOID",
                 "action": "Risk-off environment; stay in BTC or stables",
                 "rotate": False
             }
@@ -67,7 +67,7 @@ def should_rotate_to_sector(
     if score_diff > 10 and vs_btc_return > 5:
         if macro_adjusted_score >= 3.0:
             return {
-                "signal": "[G] ROTATE IN",
+                "signal": "🟢 ROTATE IN",
                 "action": f"Strong momentum + supportive macro; consider {sector_momentum.get('top_performer', 'top coin')}",
                 "rotate": True
             }
@@ -81,7 +81,7 @@ def should_rotate_to_sector(
     # Rule 3: Sector slightly outperforming
     if score_diff > 0 and vs_btc_return > 0:
         return {
-            "signal": "[Y] NEUTRAL",
+            "signal": "🟡 NEUTRAL",
             "action": "Slight outperformance; not enough edge to rotate",
             "rotate": False
         }
@@ -89,13 +89,13 @@ def should_rotate_to_sector(
     # Rule 4: Sector underperforming BTC
     if vs_btc_return < -5:
         return {
-            "signal": "[R] ROTATE OUT",
+            "signal": "🔴 ROTATE OUT",
             "action": "Sector underperforming; exit positions",
             "rotate": False
         }
     
     return {
-        "signal": "[N] NEUTRAL",
+        "signal": "⚪ NEUTRAL",
         "action": "No clear signal; maintain current allocation",
         "rotate": False
     }
@@ -115,7 +115,7 @@ def generate_sector_verdict(
     
     if len(outperforming) == 0:
         return {
-            "verdict": "[X] STAY IN BTC",
+            "verdict": "❌ STAY IN BTC",
             "reason": "No sector consistently outperforming BTC",
             "recommended_allocation": {
                 "BTC": "70-80%",
@@ -126,7 +126,7 @@ def generate_sector_verdict(
     
     if macro_score < 2.0:
         return {
-            "verdict": "[!] DEFENSIVE MODE",
+            "verdict": "⚠️ DEFENSIVE MODE",
             "reason": f"{len(outperforming)} sectors showing momentum but macro unfavorable",
             "recommended_allocation": {
                 "BTC": "50%",
@@ -139,7 +139,7 @@ def generate_sector_verdict(
     best_sector = max(all_sectors, key=lambda x: x.get("momentum_score", 0))
     if best_sector.get("momentum_score", 0) > btc_momentum + 15:
         return {
-            "verdict": f"[G] ROTATE TO {best_sector['sector'].upper()}",
+            "verdict": f"🟢 ROTATE TO {best_sector['sector'].upper()}",
             "reason": f"{best_sector['sector']} score {best_sector['momentum_score']} vs BTC {btc_momentum}",
             "recommended_allocation": {
                 "BTC": "40%",
@@ -151,7 +151,7 @@ def generate_sector_verdict(
         }
     
     return {
-        "verdict": "[Y] SELECTIVE ROTATION",
+        "verdict": "🟡 SELECTIVE ROTATION",
         "reason": "Some sectors showing strength; partial rotation OK",
         "recommended_allocation": {
             "BTC": "60%",

@@ -8,20 +8,20 @@ class CalendarFetcher:
     
     # Static macro events (update weekly in production)
     MACRO_EVENTS = [
-        {"date": "2026-02-23", "time": "19:00", "event": "Fed Minutes Release", "flag": "[US]", "impact": "[R] HIGH"},
-        {"date": "2026-02-25", "time": "15:00", "event": "Consumer Confidence", "flag": "[US]", "impact": "[Y] MEDIUM"},
-        {"date": "2026-02-27", "time": "13:30", "event": "GDP Q4 (2nd Est.)", "flag": "[US]", "impact": "[R] HIGH"},
-        {"date": "2026-02-28", "time": "13:30", "event": "PCE Inflation", "flag": "[US]", "impact": "[R] CRITICAL", "is_key_event": True, "insight": "Core PCE is Fed's preferred measure. Hot print = hawkish Fed = risk-off for crypto"},
-        {"date": "2026-03-07", "time": "13:30", "event": "Non-Farm Payrolls", "flag": "[US]", "impact": "[R] HIGH"},
-        {"date": "2026-03-12", "time": "13:30", "event": "CPI Inflation", "flag": "[US]", "impact": "[R] CRITICAL"},
+        {"date": "2026-02-23", "time": "19:00", "event": "Fed Minutes Release", "flag": "🇺🇸", "impact": "🔴 HIGH"},
+        {"date": "2026-02-25", "time": "15:00", "event": "Consumer Confidence", "flag": "🇺🇸", "impact": "🟡 MEDIUM"},
+        {"date": "2026-02-27", "time": "13:30", "event": "GDP Q4 (2nd Est.)", "flag": "🇺🇸", "impact": "🔴 HIGH"},
+        {"date": "2026-02-28", "time": "13:30", "event": "PCE Inflation", "flag": "🇺🇸", "impact": "🔴 CRITICAL", "is_key_event": True, "insight": "Core PCE is Fed's preferred measure. Hot print = hawkish Fed = risk-off for crypto"},
+        {"date": "2026-03-07", "time": "13:30", "event": "Non-Farm Payrolls", "flag": "🇺🇸", "impact": "🔴 HIGH"},
+        {"date": "2026-03-12", "time": "13:30", "event": "CPI Inflation", "flag": "🇺🇸", "impact": "🔴 CRITICAL"},
     ]
     
     # Static crypto events (can be updated via API)
     CRYPTO_EVENTS = [
-        {"date": "2026-02-24", "event": "ARB Token Unlock", "amount": "$45M", "impact": "[R] Bearish ARB"},
-        {"date": "2026-02-26", "event": "APT Token Unlock", "amount": "$82M", "impact": "[R] Bearish APT"},
-        {"date": "2026-02-28", "event": "BTC Monthly Options Expiry", "amount": "", "impact": "[Y] Volatility"},
-        {"date": "2026-03-15", "event": "ETH Dencun Upgrade", "amount": "", "impact": "[G] Bullish ETH"},
+        {"date": "2026-02-24", "event": "ARB Token Unlock", "amount": "$45M", "impact": "🔴 Bearish ARB"},
+        {"date": "2026-02-26", "event": "APT Token Unlock", "amount": "$82M", "impact": "🔴 Bearish APT"},
+        {"date": "2026-02-28", "event": "BTC Monthly Options Expiry", "amount": "", "impact": "🟡 Volatility"},
+        {"date": "2026-03-15", "event": "ETH Dencun Upgrade", "amount": "", "impact": "🟢 Bullish ETH"},
     ]
     
     async def get_calendar(self) -> Dict[str, Any]:

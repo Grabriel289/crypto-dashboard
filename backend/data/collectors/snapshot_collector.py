@@ -127,8 +127,8 @@ class SnapshotCollector:
                 
                 # Print status
                 phi = snapshot["fragility_score"]
-                level = "[G]" if phi <= 25 else "[Y]" if phi <= 50 else "[O]" if phi <= 75 else "[R]"
-                print(f"[C] {symbol} Φ={phi:.1f} {level} | OI=${snapshot['open_interest_usd']/1e9:.1f}B")
+                level = "🟢" if phi <= 25 else "🟡" if phi <= 50 else "🟠" if phi <= 75 else "🔴"
+                print(f"📊 {symbol} Φ={phi:.1f} {level} | OI=${snapshot['open_interest_usd']/1e9:.1f}B")
             
             await asyncio.sleep(1)  # Small delay between symbols
     
@@ -155,13 +155,13 @@ class SnapshotCollector:
         self.running = True
         thread = threading.Thread(target=self.start_sync, daemon=True)
         thread.start()
-        print(f"[>>] Started snapshot collector (every {self.interval//60} min)")
+        print(f"🚀 Started snapshot collector (every {self.interval//60} min)")
         return thread
     
     def stop(self):
         """Stop collection."""
         self.running = False
-        print("[STOP] Snapshot collector stopped")
+        print("🛑 Snapshot collector stopped")
     
     def get_latest(self, symbol: str = None) -> Optional[Dict[str, Any]]:
         """Get most recent snapshot."""

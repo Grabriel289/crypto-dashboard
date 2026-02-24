@@ -25,7 +25,7 @@ def generate_action_items(
     if fear_greed <= 10:
         actions.append({
             "priority": "HIGH",
-            "emoji": "[R]",
+            "emoji": "🔴",
             "action": "Do NOT panic sell",
             "reason": f"Fear & Greed at {fear_greed} = 70% probability of local bottom",
             "condition": "Always"
@@ -47,7 +47,7 @@ def generate_action_items(
         else:
             actions.append({
                 "priority": "MEDIUM",
-                "emoji": "[Y]",
+                "emoji": "🟡",
                 "action": "Prepare for accumulation",
                 "reason": "Fear + squeeze setup BUT macro weak",
                 "condition": "Wait for Macro ≥ 2.5"
@@ -70,7 +70,7 @@ def generate_action_items(
     # ═══════════════════════════════════════════════════════════════
     verdict = sector_verdict.get("verdict", "")
     if "ROTATE TO" in verdict:
-        sector = verdict.replace("[G] ROTATE TO ", "")
+        sector = verdict.replace("🟢 ROTATE TO ", "")
         actions.append({
             "priority": "MEDIUM",
             "emoji": "[Y]",
@@ -79,7 +79,7 @@ def generate_action_items(
             "condition": "Scale in gradually; 5-10% per day"
         })
     
-    if verdict.startswith("[X]"):
+    if verdict.startswith("❌"):
         actions.append({
             "priority": "MEDIUM",
             "emoji": "[Y]",
@@ -107,7 +107,7 @@ def generate_action_items(
             else:
                 actions.append({
                     "priority": "LOW",
-                    "emoji": "[N]",
+                    "emoji": "⚪",
                     "action": f"Monitor {sector_name} sector",
                     "reason": f"Strong momentum ({vs_btc:+.2f}% vs BTC) but macro unfavorable",
                     "condition": "Wait for macro improvement"

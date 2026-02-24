@@ -93,7 +93,7 @@ class MacroTideScorer:
                     "active": True,
                     "penalty": -0.5,
                     "detail": f"+{spread:.0f}bp gap",
-                    "status": "[RED] ACTIVE"
+                    "status": "🔴 ACTIVE"
                 }
             else:
                 leaks["fiscal_dominance"]["status"] = "[G] OK"
@@ -117,27 +117,27 @@ class MacroTideScorer:
         """Classify market regime based on adjusted score."""
         if adjusted_score >= 4.0:
             return {
-                "regime": "[GREEN] HIGH TIDE / RISK-ON",
+                "regime": "🟢 HIGH TIDE / RISK-ON",
                 "stance": "Aggressive",
-                "emoji": "[G]"
+                "emoji": "🟢"
             }
         elif adjusted_score >= 3.0:
             return {
-                "regime": "[YELLOW] NEUTRAL",
+                "regime": "🟡 NEUTRAL",
                 "stance": "Balanced",
-                "emoji": "[Y]"
+                "emoji": "🟡"
             }
         elif adjusted_score >= 2.0:
             return {
-                "regime": "[ORANGE] CAUTION / BLOCKED FLOW",
+                "regime": "🟠 CAUTION / BLOCKED FLOW",
                 "stance": "Defensive",
-                "emoji": "[O]"
+                "emoji": "🟠"
             }
         else:
             return {
-                "regime": "[RED] LOW TIDE / RISK-OFF",
+                "regime": "🔴 LOW TIDE / RISK-OFF",
                 "stance": "Defensive",
-                "emoji": "[R]"
+                "emoji": "🔴"
             }
     
     async def calculate_full_score(self) -> Dict[str, Any]:
