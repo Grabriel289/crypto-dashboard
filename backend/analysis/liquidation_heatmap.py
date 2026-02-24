@@ -61,7 +61,7 @@ def estimate_liquidation_heatmap(
     """
     Estimate liquidation levels from OI + leverage assumptions.
     
-    [WARNING] DISCLAIMER: This is ESTIMATED, not actual pending liquidations.
+    ⚠️ DISCLAIMER: This is ESTIMATED, not actual pending liquidations.
     Calculated from OI + leverage distribution assumptions.
     Accuracy ~60-70%.
     
@@ -196,16 +196,16 @@ def generate_heatmap_insight(
     # Fragility-based insight
     if fragility_score >= 75:
         fragility_insight = "CRITICAL: High probability of flash crash/squeeze"
-        emoji = "[RED]"
+        emoji = "🔴"
     elif fragility_score >= 50:
         fragility_insight = "FRAGILE: Expect wicky price action"
-        emoji = "[ORANGE]"
+        emoji = "🟠"
     elif fragility_score >= 25:
         fragility_insight = "CAUTION: Standard market conditions"
-        emoji = "[YELLOW]"
+        emoji = "🟡"
     else:
         fragility_insight = "STABLE: Safe for larger positions"
-        emoji = "[GREEN]"
+        emoji = "🟢"
     
     insights.append(fragility_insight)
     
@@ -219,7 +219,7 @@ def generate_heatmap_insight(
         if distance < 5:
             liq_insight = f"[WARNING] Major {side} liq wall at ${price:,.0f} ({distance:.1f}% away, ${usd/1e9:.1f}B)"
         elif distance < 10:
-            liq_insight = f"[CHART] Significant {side} liq cluster at ${price:,.0f} ({distance:.1f}% away)"
+            liq_insight = f"📊 Significant {side} liq cluster at ${price:,.0f} ({distance:.1f}% away)"
         else:
             liq_insight = None
         
@@ -231,7 +231,7 @@ def generate_heatmap_insight(
     short_at_risk = estimated['total_short_at_risk']
     
     if long_at_risk > short_at_risk * 2:
-        insights.append("[TARGET] Longs more vulnerable - potential short squeeze setup")
+        insights.append("🎯 Longs more vulnerable - potential short squeeze setup")
     elif short_at_risk > long_at_risk * 2:
         insights.append("[TARGET] Shorts more vulnerable - potential long squeeze setup")
     

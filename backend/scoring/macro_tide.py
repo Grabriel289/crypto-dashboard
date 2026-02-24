@@ -119,25 +119,25 @@ class MacroTideScorer:
             return {
                 "regime": "[GREEN] HIGH TIDE / RISK-ON",
                 "stance": "Aggressive",
-                "emoji": "[GREEN]"
+                "emoji": "🟢"
             }
         elif adjusted_score >= 3.0:
             return {
                 "regime": "[YELLOW] NEUTRAL",
                 "stance": "Balanced",
-                "emoji": "[YELLOW]"
+                "emoji": "🟡"
             }
         elif adjusted_score >= 2.0:
             return {
                 "regime": "[ORANGE] CAUTION / BLOCKED FLOW",
                 "stance": "Defensive",
-                "emoji": "[ORANGE]"
+                "emoji": "🟠"
             }
         else:
             return {
                 "regime": "[RED] LOW TIDE / RISK-OFF",
                 "stance": "Defensive",
-                "emoji": "[RED]"
+                "emoji": "🔴"
             }
     
     async def calculate_full_score(self) -> Dict[str, Any]:

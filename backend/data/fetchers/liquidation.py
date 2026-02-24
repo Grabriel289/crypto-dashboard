@@ -214,7 +214,7 @@ class LiquidationFetcher:
             "fragility": {
                 "score": 45.0,
                 "level": "Caution",
-                "emoji": "[YELLOW]",
+                "emoji": "🟡",
                 "color": "#ffaa00",
                 "components": {
                     "L_d": {"value": 40.0, "label": "Liquidation Density"},
