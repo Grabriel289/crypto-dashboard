@@ -70,7 +70,7 @@ def aggregate_funding_signals(funding_data: Dict[str, Dict]) -> Dict[str, Any]:
         return {
             "overall_signal": "SQUEEZE SETUP",
             "bias": "bullish",
-            "emoji": "[GREEN]",
+            "emoji": "🟢",
             "description": "Negative funding dominance"
         }
     elif bearish_count > bullish_count and bearish_count > neutral_count:
@@ -84,6 +84,6 @@ def aggregate_funding_signals(funding_data: Dict[str, Dict]) -> Dict[str, Any]:
         return {
             "overall_signal": "NEUTRAL",
             "bias": "neutral",
-            "emoji": "[YELLOW]",
+            "emoji": "🟡",
             "description": "Mixed funding signals"
         }
