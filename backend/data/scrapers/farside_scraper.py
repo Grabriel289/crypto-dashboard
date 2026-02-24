@@ -16,7 +16,10 @@ class FarsideScraper:
     
     def __init__(self):
         self.session: Optional[aiohttp.ClientSession] = None
-        os.makedirs(os.path.dirname(self.CACHE_FILE), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(self.CACHE_FILE), exist_ok=True)
+        except Exception:
+            pass  # Ignore if cannot create cache directory
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
