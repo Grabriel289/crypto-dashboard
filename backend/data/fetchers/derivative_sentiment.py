@@ -201,10 +201,10 @@ class DerivativeSentimentFetcher:
         coinglass_data = self.load_coinglass_cache()
         
         if coinglass_data:
-            print("📊 Using CoinGlass scraped data")
+            print("[CoinGlass] Using scraped data")
             results = coinglass_data
         else:
-            print("🔍 No CoinGlass cache. Trying Binance API...")
+            print("[CoinGlass] No cache. Trying Binance API...")
             
             for symbol in self.SYMBOLS:
                 try:

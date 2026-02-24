@@ -119,19 +119,19 @@ def calculate_fragility_score(
     # Determine level
     if phi <= 25:
         level = "Stable"
-        emoji = "🟢"
+        emoji = "[GREEN]"
         color = "#00ff88"
     elif phi <= 50:
         level = "Caution"
-        emoji = "🟡"
+        emoji = "[YELLOW]"
         color = "#ffaa00"
     elif phi <= 75:
         level = "Fragile"
-        emoji = "🟠"
+        emoji = "[ORANGE]"
         color = "#ff6b35"
     else:
         level = "Critical"
-        emoji = "🔴"
+        emoji = "[RED]"
         color = "#ff4444"
     
     return {
@@ -214,19 +214,19 @@ def calculate_fragility(
     # Get label
     if total_score >= 75:
         label = "CRITICAL"
-        emoji = "🔴"
+        emoji = "[RED]"
         color = "#ff4444"
     elif total_score >= 50:
         label = "ELEVATED"
-        emoji = "🟠"
+        emoji = "[ORANGE]"
         color = "#ff6b35"
     elif total_score >= 25:
         label = "MODERATE"
-        emoji = "🟡"
+        emoji = "[YELLOW]"
         color = "#ffaa00"
     else:
         label = "LOW"
-        emoji = "🟢"
+        emoji = "[GREEN]"
         color = "#00ff88"
     
     return {

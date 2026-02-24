@@ -12,7 +12,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     if rate_pct < -0.03:
         return {
             "signal": "STRONG SQUEEZE SETUP",
-            "emoji": "🟢",
+            "emoji": "[GREEN]",
             "bias": "bullish",
             "description": "Shorts paying longs heavily",
             "color": "#00ff88"
@@ -20,7 +20,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0:
         return {
             "signal": "SQUEEZE SETUP",
-            "emoji": "🟢",
+            "emoji": "[GREEN]",
             "bias": "bullish",
             "description": "Negative funding; shorts dominant",
             "color": "#00cc6a"
@@ -28,7 +28,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0.03:
         return {
             "signal": "NEUTRAL",
-            "emoji": "🟡",
+            "emoji": "[YELLOW]",
             "bias": "neutral",
             "description": "Balanced positioning",
             "color": "#ffaa00"
@@ -36,7 +36,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     elif rate_pct < 0.08:
         return {
             "signal": "OVERLEVERAGED LONGS",
-            "emoji": "🟠",
+            "emoji": "[ORANGE]",
             "bias": "bearish",
             "description": "Pullback risk elevated",
             "color": "#ff6b35"
@@ -44,7 +44,7 @@ def interpret_funding(rate: float) -> Dict[str, Any]:
     else:
         return {
             "signal": "EXTREME EUPHORIA",
-            "emoji": "🔴",
+            "emoji": "[RED]",
             "bias": "bearish",
             "description": "Correction imminent",
             "color": "#ff4444"
@@ -57,7 +57,7 @@ def aggregate_funding_signals(funding_data: Dict[str, Dict]) -> Dict[str, Any]:
         return {
             "overall_signal": "NEUTRAL",
             "bias": "neutral",
-            "emoji": "🟡"
+            "emoji": "[YELLOW]"
         }
     
     # Count biases
@@ -70,20 +70,20 @@ def aggregate_funding_signals(funding_data: Dict[str, Dict]) -> Dict[str, Any]:
         return {
             "overall_signal": "SQUEEZE SETUP",
             "bias": "bullish",
-            "emoji": "🟢",
+            "emoji": "[GREEN]",
             "description": "Negative funding dominance"
         }
     elif bearish_count > bullish_count and bearish_count > neutral_count:
         return {
             "overall_signal": "OVERLEVERAGED",
             "bias": "bearish",
-            "emoji": "🟠",
+            "emoji": "[ORANGE]",
             "description": "Longs paying shorts - caution"
         }
     else:
         return {
             "overall_signal": "NEUTRAL",
             "bias": "neutral",
-            "emoji": "🟡",
+            "emoji": "[YELLOW]",
             "description": "Mixed funding signals"
         }

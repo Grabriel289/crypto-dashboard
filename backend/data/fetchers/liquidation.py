@@ -214,7 +214,7 @@ class LiquidationFetcher:
             "fragility": {
                 "score": 45.0,
                 "level": "Caution",
-                "emoji": "🟡",
+                "emoji": "[YELLOW]",
                 "color": "#ffaa00",
                 "components": {
                     "L_d": {"value": 40.0, "label": "Liquidation Density"},
@@ -245,7 +245,7 @@ class LiquidationFetcher:
                 {"price": 85000, "usd_value": 2.8e9, "side": "LONG", "distance_pct": 10.5}
             ],
             "insight": {
-                "emoji": "🟡",
+                "emoji": "[YELLOW]",
                 "summary": "CAUTION: Using estimated data",
                 "details": ["Live data temporarily unavailable"],
                 "recommendation": "Check connection to Binance API"
