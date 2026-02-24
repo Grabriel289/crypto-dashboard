@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from data.fetchers.fred import fred_fetcher
 from data.fetchers.yahoo_finance import yahoo_finance_fetcher
+from data.scrapers.farside_scraper import farside_scraper
 
 
 @dataclass
@@ -77,7 +78,7 @@ class MacroTideScorer:
             }
         }
     
-    def check_liquidity_leaks(self, indicators: MacroIndicators) -> Dict[str, Any]:
+    async def check_liquidity_leaks(self, indicators: MacroIndicators) -> Dict[str, Any]:
         """Check for liquidity leak conditions."""
         leaks = {
             "fiscal_dominance": {"active": False, "penalty": 0.0, "detail": ""},
@@ -98,9 +99,16 @@ class MacroTideScorer:
             else:
                 leaks["fiscal_dominance"]["status"] = "🟢 OK"
         
-        # Gold Cannibalization - simplified (would need BTC ETF flow data)
-        leaks["gold_cannibalization"]["status"] = "🟢 OK"
-        leaks["gold_cannibalization"]["detail"] = "Monitoring BTC ETF flows"
+        # Gold Cannibalization - using real BTC ETF flow data from farside.co.uk
+        etf_flows = await farside_scraper.scrape_etf_flows()
+        gold_cannibalization = farside_scraper.get_gold_cannibalization_signal(etf_flows)
+        
+        leaks["gold_cannibalization"] = {
+            "active": gold_cannibalization["active"],
+            "status": gold_cannibalization["status"],
+            "detail": gold_cannibalization["detail"],
+            "flow_24h": gold_cannibalization.get("flow_24h")
+        }
         
         # Policy Lag - simplified
         leaks["policy_lag"]["status"] = "🟡 PARTIAL"
@@ -145,7 +153,10 @@ class MacroTideScorer:
         indicators = await self.fetch_all_indicators()
         
         b1 = self.calculate_b1_score(indicators)
-        leaks = self.check_liquidity_leaks(indicators)
+        leaks = await self.check_liquidity_leaks(indicators)
+        
+        # Close farside scraper session
+        await farside_scraper.close()
         
         adjusted_score = max(0, b1["raw_score"] + leaks["total_penalty"])
         regime = self.classify_regime(adjusted_score)
