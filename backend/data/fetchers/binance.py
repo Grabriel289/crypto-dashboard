@@ -1,8 +1,8 @@
-"""Binance data fetcher."""
+"""Binance data fetcher with improved 7D return calculation."""
 import aiohttp
 import pandas as pd
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 BINANCE_SPOT_URL = "https://api.binance.com"
@@ -56,6 +56,36 @@ class BinanceFetcher:
             except Exception as e:
                 print(f"Binance klines fetch error for {symbol}: {e}")
                 return None
+    
+    async def fetch_7d_return(self, symbol: str) -> Optional[float]:
+        """
+        Calculate actual 7-day return using historical price data.
+        Fetches price from 7 days ago and compares to current price.
+        """
+        try:
+            # Get current price
+            current_data = await self.fetch_price(symbol)
+            if not current_data:
+                return None
+            current_price = current_data["price"]
+            
+            # Get historical price from 7 days ago using klines
+            # Need 8 days to get the close price from exactly 7 days ago
+            df = await self.fetch_klines(symbol, interval="1d", limit=8)
+            if df is None or len(df) < 8:
+                return None
+            
+            # Price from 7 days ago (first candle in the 8-day window)
+            price_7d_ago = df["close"].iloc[0]
+            
+            # Calculate actual return
+            return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
+            
+            return return_7d
+            
+        except Exception as e:
+            print(f"Error calculating 7d return for {symbol}: {e}")
+            return None
     
     async def fetch_funding_rate(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Fetch current funding rate."""

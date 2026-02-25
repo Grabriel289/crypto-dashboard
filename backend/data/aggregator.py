@@ -177,46 +177,32 @@ class DataAggregator:
         return await binance_fetcher.fetch_open_interest(symbol)
     
     async def fetch_7d_return(self, coin: str) -> Optional[float]:
-        """Fetch real 7-day return from klines data. Tries Binance, OKX, KuCoin, then CoinGecko."""
-        # Try Binance first
+        """
+        Fetch actual 7-day return from historical price data.
+        Tries Binance, OKX, KuCoin, then CoinGecko.
+        Uses current price vs price from exactly 7 days ago.
+        """
+        # Try Binance first - uses actual current price vs 7-day historical
         binance_symbol = SYMBOL_MAPPING.get("binance", {}).get(coin)
         if binance_symbol:
-            df = await binance_fetcher.fetch_klines(binance_symbol, interval="1d", limit=8)
-            if df is not None and len(df) >= 8:
-                try:
-                    price_7d_ago = df["close"].iloc[0]
-                    current_price = df["close"].iloc[-1]
-                    return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
-                    return return_7d
-                except Exception as e:
-                    print(f"Error calculating 7d return for {coin} from Binance: {e}")
+            return_7d = await binance_fetcher.fetch_7d_return(binance_symbol)
+            if return_7d is not None:
+                return return_7d
         
         # Fallback to OKX
         okx_symbol = SYMBOL_MAPPING.get("okx", {}).get(coin)
         if okx_symbol:
             from data.fetchers.okx import okx_fetcher
-            df = await okx_fetcher.fetch_klines(okx_symbol, interval="1D", limit=8)
-            if df is not None and len(df) >= 8:
-                try:
-                    price_7d_ago = df["close"].iloc[0]
-                    current_price = df["close"].iloc[-1]
-                    return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
-                    return return_7d
-                except Exception as e:
-                    print(f"Error calculating 7d return for {coin} from OKX: {e}")
+            return_7d = await okx_fetcher.fetch_7d_return(okx_symbol)
+            if return_7d is not None:
+                return return_7d
         
         # Fallback to KuCoin
         kucoin_symbol = SYMBOL_MAPPING.get("kucoin", {}).get(coin)
         if kucoin_symbol:
-            df = await kucoin_fetcher.fetch_klines(kucoin_symbol, interval="1day", limit=8)
-            if df is not None and len(df) >= 8:
-                try:
-                    price_7d_ago = df["close"].iloc[0]
-                    current_price = df["close"].iloc[-1]
-                    return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
-                    return return_7d
-                except Exception as e:
-                    print(f"Error calculating 7d return for {coin} from KuCoin: {e}")
+            return_7d = await kucoin_fetcher.fetch_7d_return(kucoin_symbol)
+            if return_7d is not None:
+                return return_7d
         
         # Final fallback to CoinGecko
         try:
