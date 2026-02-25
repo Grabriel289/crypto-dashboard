@@ -41,6 +41,16 @@ async def lifespan(app: FastAPI):
     # Shutdown
     print(">>> Shutting down...")
     data_scheduler.stop()
+    
+    # Close fetcher sessions
+    try:
+        from data.fetchers.liquidation import liquidation_fetcher
+        from data.fetchers.derivative_sentiment import derivative_sentiment_fetcher
+        await liquidation_fetcher.close()
+        await derivative_sentiment_fetcher.close()
+        print(">>> Fetcher sessions closed")
+    except Exception as e:
+        print(f">>> Error closing fetcher sessions: {e}")
 
 
 app = FastAPI(

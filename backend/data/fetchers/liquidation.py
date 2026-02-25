@@ -1,23 +1,28 @@
-"""BTC Liquidation Heatmap fetcher - Real-time from Binance."""
+"""BTC Liquidation Heatmap fetcher - Real-time from Binance with rate limiting."""
 import aiohttp
 import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
+from data.utils.rate_limiter import binance_rate_limiter
+
 
 class LiquidationFetcher:
-    """Fetch liquidation heatmap data from Binance Futures."""
+    """Fetch liquidation heatmap data from Binance Futures with rate limiting."""
     
     BINANCE_FUTURES = "https://fapi.binance.com"
     BINANCE_SPOT = "https://api.binance.com"
     
     def __init__(self):
         self.session: Optional[aiohttp.ClientSession] = None
+        self._session_lock = asyncio.Lock()
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            async with self._session_lock:
+                if self.session is None or self.session.closed:
+                    self.session = aiohttp.ClientSession()
         return self.session
     
     async def close(self):
@@ -26,26 +31,39 @@ class LiquidationFetcher:
             await self.session.close()
     
     async def _fetch_price(self, symbol: str = "BTCUSDT", futures: bool = True) -> Optional[float]:
-        """Fetch current price from Binance."""
+        """Fetch current price from Binance with rate limiting."""
+        async def _do_fetch():
+            try:
+                session = await self._get_session()
+                if futures:
+                    url = f"{self.BINANCE_FUTURES}/fapi/v1/ticker/price"
+                    endpoint = "fapi/v1/ticker/price"
+                else:
+                    url = f"{self.BINANCE_SPOT}/api/v3/ticker/price"
+                    endpoint = "api/v3/ticker/price"
+                
+                async with session.get(url, params={"symbol": symbol}, timeout=10) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        return float(data["price"])
+                    elif resp.status == 429:
+                        raise Exception(f"429 Too Many Requests for {endpoint}")
+                    return None
+            except Exception as e:
+                raise e
+        
         try:
-            session = await self._get_session()
-            if futures:
-                url = f"{self.BINANCE_FUTURES}/fapi/v1/ticker/price"
-            else:
-                url = f"{self.BINANCE_SPOT}/api/v3/ticker/price"
-            
-            async with session.get(url, params={"symbol": symbol}, timeout=10) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return float(data["price"])
-                return None
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch, 
+                endpoint="ticker/price"
+            )
         except Exception as e:
             print(f"Error fetching price for {symbol}: {e}")
             return None
     
     async def fetch_open_interest(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, Any]]:
-        """Fetch open interest from Binance Futures."""
-        try:
+        """Fetch open interest from Binance Futures with rate limiting."""
+        async def _do_fetch():
             session = await self._get_session()
             url = f"{self.BINANCE_FUTURES}/fapi/v1/openInterest"
             
@@ -57,14 +75,22 @@ class LiquidationFetcher:
                         "openInterest": float(data["openInterest"]),
                         "time": data["time"]
                     }
+                elif resp.status == 429:
+                    raise Exception("429 Too Many Requests for openInterest")
                 return None
+        
+        try:
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch,
+                endpoint="openInterest"
+            )
         except Exception as e:
             print(f"Error fetching OI for {symbol}: {e}")
             return None
     
     async def fetch_funding_rate(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, Any]]:
-        """Fetch current funding rate."""
-        try:
+        """Fetch current funding rate with rate limiting."""
+        async def _do_fetch():
             session = await self._get_session()
             url = f"{self.BINANCE_FUTURES}/fapi/v1/premiumIndex"
             
@@ -77,14 +103,22 @@ class LiquidationFetcher:
                         "lastFundingRate": float(data["lastFundingRate"]),
                         "nextFundingTime": data["nextFundingTime"]
                     }
+                elif resp.status == 429:
+                    raise Exception("429 Too Many Requests for premiumIndex")
                 return None
+        
+        try:
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch,
+                endpoint="premiumIndex"
+            )
         except Exception as e:
             print(f"Error fetching funding for {symbol}: {e}")
             return None
     
     async def fetch_funding_history(self, symbol: str = "BTCUSDT", limit: int = 21) -> List[float]:
-        """Fetch funding rate history for 7 days (21 periods)."""
-        try:
+        """Fetch funding rate history for 7 days with rate limiting."""
+        async def _do_fetch():
             session = await self._get_session()
             url = f"{self.BINANCE_FUTURES}/fapi/v1/fundingRate"
             
@@ -92,31 +126,44 @@ class LiquidationFetcher:
                 if resp.status == 200:
                     data = await resp.json()
                     return [float(r["fundingRate"]) for r in data]
+                elif resp.status == 429:
+                    raise Exception("429 Too Many Requests for fundingRate")
                 return []
+        
+        try:
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch,
+                endpoint="fundingRate"
+            )
         except Exception as e:
             print(f"Error fetching funding history for {symbol}: {e}")
             return []
     
     async def fetch_prices(self, symbol: str = "BTCUSDT") -> Optional[Dict[str, float]]:
-        """Fetch both spot and perpetual prices."""
+        """Fetch both spot and perpetual prices with rate limiting."""
         try:
-            session = await self._get_session()
+            # Use gather with semaphore to prevent too many concurrent requests
+            sem = asyncio.Semaphore(2)
             
-            # Perp price
-            perp_url = f"{self.BINANCE_FUTURES}/fapi/v1/ticker/price"
-            async with session.get(perp_url, params={"symbol": symbol}, timeout=10) as resp:
-                if resp.status != 200:
-                    return None
-                perp_data = await resp.json()
-                perp_price = float(perp_data["price"])
+            async def fetch_perp():
+                async with sem:
+                    return await self._fetch_price(symbol, futures=True)
             
-            # Spot price
-            spot_url = f"{self.BINANCE_SPOT}/api/v3/ticker/price"
-            async with session.get(spot_url, params={"symbol": symbol}, timeout=10) as resp:
-                if resp.status != 200:
-                    return None
-                spot_data = await resp.json()
-                spot_price = float(spot_data["price"])
+            async def fetch_spot():
+                async with sem:
+                    return await self._fetch_price(symbol, futures=False)
+            
+            perp_price, spot_price = await asyncio.gather(
+                fetch_perp(),
+                fetch_spot(),
+                return_exceptions=True
+            )
+            
+            # Handle exceptions
+            if isinstance(perp_price, Exception) or perp_price is None:
+                return None
+            if isinstance(spot_price, Exception) or spot_price is None:
+                return None
             
             return {
                 "spot": spot_price,
@@ -129,8 +176,8 @@ class LiquidationFetcher:
             return None
     
     async def fetch_orderbook_depth(self, symbol: str = "BTCUSDT", limit: int = 1000) -> Optional[Dict[str, Any]]:
-        """Fetch order book depth."""
-        try:
+        """Fetch order book depth with rate limiting."""
+        async def _do_fetch():
             session = await self._get_session()
             url = f"{self.BINANCE_FUTURES}/fapi/v1/depth"
             
@@ -142,7 +189,15 @@ class LiquidationFetcher:
                         "asks": [[float(p), float(q)] for p, q in data["asks"]],
                         "lastUpdateId": data["lastUpdateId"]
                     }
+                elif resp.status == 429:
+                    raise Exception("429 Too Many Requests for depth")
                 return None
+        
+        try:
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch,
+                endpoint="depth"
+            )
         except Exception as e:
             print(f"Error fetching depth for {symbol}: {e}")
             return None
@@ -160,19 +215,30 @@ class LiquidationFetcher:
         from scoring.fragility import calculate_depth_2pct
         
         try:
-            # Fetch all required data concurrently
-            oi_data, funding_data, prices, depth = await asyncio.gather(
-                self.fetch_open_interest(symbol),
-                self.fetch_funding_rate(symbol),
-                self.fetch_prices(symbol),
-                self.fetch_orderbook_depth(symbol)
-            )
+            # Fetch all required data with staggered timing to avoid rate limits
+            oi_data = await self.fetch_open_interest(symbol)
+            await asyncio.sleep(0.1)  # Small delay between requests
+            
+            funding_data = await self.fetch_funding_rate(symbol)
+            await asyncio.sleep(0.1)
+            
+            prices = await self.fetch_prices(symbol)
+            await asyncio.sleep(0.1)
+            
+            depth = await self.fetch_orderbook_depth(symbol)
+            await asyncio.sleep(0.1)
             
             # Fetch funding history (needed for F_sigma)
             funding_history = await self.fetch_funding_history(symbol)
             
             # Check if we have all required data
             if not all([oi_data, funding_data, prices, depth]):
+                missing = []
+                if not oi_data: missing.append("OI")
+                if not funding_data: missing.append("funding")
+                if not prices: missing.append("prices")
+                if not depth: missing.append("depth")
+                print(f"[Heatmap] Missing data for {symbol}: {missing}, using fallback")
                 return self._get_fallback_data(symbol)
             
             # Calculate OI in USD
@@ -253,13 +319,16 @@ class LiquidationFetcher:
         }
     
     async def get_multi_heatmap(self, symbols: List[str] = None) -> Dict[str, Any]:
-        """Get heatmap for multiple symbols."""
+        """Get heatmap for multiple symbols with rate limiting between calls."""
         if symbols is None:
             symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
         
         results = {}
-        for symbol in symbols:
+        for i, symbol in enumerate(symbols):
             results[symbol] = await self.get_heatmap(symbol)
+            # Add delay between symbols to avoid rate limits
+            if i < len(symbols) - 1:
+                await asyncio.sleep(0.5)
         
         return {
             "symbols": results,
