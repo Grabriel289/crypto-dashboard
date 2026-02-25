@@ -208,15 +208,25 @@ async def get_sector_data() -> Dict[str, Any]:
             "has_data": len(scores) > 0
         })
     
-    # Get BTC momentum (from L1 sector or direct)
-    btc_momentum = next((s["momentum_score"] for s in sector_data if s["sector"] == "L1"), 50)
+    # Get BTC's actual momentum (not L1 sector average)
+    btc_momentum = 50  # default
+    l1_sector = next((s for s in sector_data if s["sector"] == "L1"), None)
+    if l1_sector:
+        # Find BTC specifically in L1 sector's top_3_coins or coin details
+        btc_coin = next((c for c in l1_sector.get("top_3_coins", []) if c["symbol"] == "BTC"), None)
+        if btc_coin:
+            btc_momentum = btc_coin.get("momentum_score", 50)
+        else:
+            # Fallback: calculate from returns_7d_data
+            btc_return = returns_7d_data.get("BTC", 0)
+            btc_momentum = max(0, min(100, 50 + (btc_return * 2)))
     
     # Get macro score
     macro = await macro_tide_scorer.calculate_full_score()
     macro_score = macro.get("adjusted_score", 2.5)
     
-    # Generate verdict
-    verdict = generate_sector_verdict(sector_data, btc_momentum, macro_score)
+    # Generate verdict (pass btc_return_7d for better comparison)
+    verdict = generate_sector_verdict(sector_data, btc_momentum, macro_score, btc_return_7d)
     
     return {
         "sectors": sector_data,

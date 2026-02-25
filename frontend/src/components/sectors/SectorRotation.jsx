@@ -86,10 +86,12 @@ function SectorRotation({ data }) {
           </thead>
           <tbody>
             {sectors?.map((sector, index) => {
+              // Signal logic aligned with backend verdict
               const signal = sector.avg_vs_btc_7d > 5 ? '🟢 ROTATE IN' :
-                            sector.avg_vs_btc_7d > 0 ? '🟡 WATCH' :
-                            sector.avg_vs_btc_7d > -5 ? '⚪ NEUTRAL' :
-                            sector.avg_vs_btc_7d > -10 ? '🟠 AVOID' : '🔴 CAPITULATE'
+                            sector.avg_vs_btc_7d > 2 ? '🟡 WATCH' :
+                            sector.avg_vs_btc_7d > 0 ? '⚪ NEUTRAL' :
+                            sector.avg_vs_btc_7d > -5 ? '🟠 UNDERPERFORM' :
+                            sector.avg_vs_btc_7d > -10 ? '🔴 AVOID' : '⚫ CAPITULATE'
               
               const isExpanded = expandedSector === sector.sector
               
