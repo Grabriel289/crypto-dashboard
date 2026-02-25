@@ -56,6 +56,7 @@ SYMBOL_MAPPING = {
         "NEAR": "NEARUSDT",
         "APT": "APTUSDT",
         "SUI": "SUIUSDT",
+        "SEI": "SEIUSDT",
         "ARB": "ARBUSDT",
         "OP": "OPUSDT",
         "PEPE": "PEPEUSDT",
@@ -69,6 +70,7 @@ SYMBOL_MAPPING = {
         "PAXG": "PAXGUSDT",
         "JUP": "JUPUSDT",
         "ENA": "ENAUSDT",
+        "AERO": "AEROUSDT",
     },
     "okx": {
         "BTC": "BTC-USDT",
@@ -88,6 +90,7 @@ SYMBOL_MAPPING = {
         "NEAR": "NEAR-USDT",
         "APT": "APT-USDT",
         "SUI": "SUI-USDT",
+        "SEI": "SEI-USDT",
         "ARB": "ARB-USDT",
         "OP": "OP-USDT",
         "PEPE": "PEPE-USDT",
@@ -100,6 +103,9 @@ SYMBOL_MAPPING = {
         "PAXG": "PAXG-USDT",
         "JUP": "JUP-USDT",
         "HYPE": "HYPE-USDT",
+        "LIT": "LIT-USDT",
+        "MON": "MON-USDT",
+        "SKY": "SKY-USDT",
     },
     "kucoin": {
         "BTC": "BTC-USDT",
