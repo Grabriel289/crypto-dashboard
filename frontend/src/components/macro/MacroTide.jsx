@@ -123,9 +123,13 @@ function MacroTide({ data }) {
                   <div>
                     <div className="text-xs text-cyber-text-muted mb-2">
                       {leak.interpretation}
+                      {leak.is_fallback && (
+                        <span className="text-cyber-accent-orange ml-1">(Est.)</span>
+                      )}
                     </div>
                     <div className="text-xs font-mono text-cyber-accent-cyan mb-2">
                       24h Flow: ${leak.flow_24h > 0 ? '+' : ''}{leak.flow_24h?.toFixed(1)}M
+                      {leak.is_fallback && <span className="text-cyber-text-muted text-[10px] ml-1">~</span>}
                     </div>
                     
                     {/* Individual ETF Breakdown */}
