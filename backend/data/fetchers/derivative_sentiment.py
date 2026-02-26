@@ -300,25 +300,25 @@ class DerivativeSentimentFetcher:
             # Process symbols sequentially with delays to avoid rate limits
             for i, symbol in enumerate(self.SYMBOLS):
                 try:
-                    # Add delay between symbols
+                    # Add delay between symbols (increased to avoid rate limits)
                     if i > 0:
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(1.0)
                     
                     # Fetch all data for this symbol with staggered timing
                     oi = await self.fetch_open_interest(symbol)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.2)
                     
                     oi_history = await self.fetch_oi_history(symbol)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.2)
                     
                     retail_ls = await self.fetch_retail_long_short(symbol)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.2)
                     
                     top_ls = await self.fetch_top_trader_long_short(symbol)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.2)
                     
                     taker = await self.fetch_taker_buy_sell(symbol)
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.2)
                     
                     # Fetch price for OI calculation
                     price = await self.fetch_price(symbol)

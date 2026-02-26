@@ -217,16 +217,16 @@ class LiquidationFetcher:
         try:
             # Fetch all required data with staggered timing to avoid rate limits
             oi_data = await self.fetch_open_interest(symbol)
-            await asyncio.sleep(0.1)  # Small delay between requests
+            await asyncio.sleep(0.2)  # Small delay between requests
             
             funding_data = await self.fetch_funding_rate(symbol)
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.2)
             
             prices = await self.fetch_prices(symbol)
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.2)
             
             depth = await self.fetch_orderbook_depth(symbol)
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.2)
             
             # Fetch funding history (needed for F_sigma)
             funding_history = await self.fetch_funding_history(symbol)
@@ -328,7 +328,7 @@ class LiquidationFetcher:
             results[symbol] = await self.get_heatmap(symbol)
             # Add delay between symbols to avoid rate limits
             if i < len(symbols) - 1:
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(1.0)
         
         return {
             "symbols": results,

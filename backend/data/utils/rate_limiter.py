@@ -27,14 +27,18 @@ class BinanceRateLimiter:
     Binance uses a weight system where different endpoints cost different amounts.
     """
     
-    # Endpoint weights (approximate)
+    # Endpoint weights (approximate based on Binance API docs)
     WEIGHTS = {
         "ticker/price": 1,
         "openInterest": 1,
+        "openInterestHist": 10,  # Heavy endpoint - historical data
         "premiumIndex": 1,
         "fundingRate": 1,
         "depth": 10,  # Order book is heavier
         "klines": 2,
+        "globalLongShortAccountRatio": 1,
+        "topLongShortPositionRatio": 1,
+        "takerlongshortRatio": 1,
     }
     
     def __init__(self, config: Optional[RateLimitConfig] = None):
