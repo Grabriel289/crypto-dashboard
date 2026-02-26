@@ -246,6 +246,8 @@ async def get_action_items() -> Dict[str, Any]:
     macro = await macro_tide_scorer.calculate_full_score()
     pulse = await get_crypto_pulse()
     sectors = await get_sector_data()
+    key_levels = await get_key_levels()
+    calendar = await get_economic_calendar()
     
     actions = generate_action_items(
         macro_score=macro.get("adjusted_score", 2.5),
@@ -282,6 +284,7 @@ async def get_action_items() -> Dict[str, Any]:
     return {
         "actions": actions,
         "conflicts": conflicts,
+        "final_verdict": final_verdict,
         "summary": {
             "macro_regime": macro.get("regime", ""),
             "fear_greed": pulse.get("fear_greed", {}).get("label", ""),
