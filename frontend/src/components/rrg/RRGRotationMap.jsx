@@ -207,16 +207,17 @@ function RRGRotationMap({ data }) {
       </div>
 
       {/* Main Content - 2 Columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '20px', alignItems: 'stretch' }}>
         {/* Left Column - RRG Chart */}
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{
             background: COLORS.background,
             border: `2px solid ${COLORS.border}`,
             borderRadius: '8px',
             padding: '20px',
             position: 'relative',
-            height: '400px'
+            height: '420px',
+            flex: 1
           }}>
             {/* Quadrant Backgrounds */}
             <div style={{
@@ -425,13 +426,14 @@ function RRGRotationMap({ data }) {
         </div>
 
         {/* Right Column - Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '420px' }}>
           {/* Regime Indicator Card */}
           <div style={{
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '8px',
-            padding: '16px'
+            padding: '16px',
+            flex: '0 0 auto'
           }}>
             <div style={{ 
               fontSize: '11px', 
@@ -512,7 +514,11 @@ function RRGRotationMap({ data }) {
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '8px',
-            padding: '16px'
+            padding: '16px',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
             <div style={{
               display: 'flex',
@@ -531,8 +537,8 @@ function RRGRotationMap({ data }) {
                 Risk Assets
               </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {risk_assets.map((asset) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
+              {[...risk_assets].sort((a, b) => b.period_return - a.period_return).map((asset) => (
                 <div key={asset.symbol} style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -578,7 +584,11 @@ function RRGRotationMap({ data }) {
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '8px',
-            padding: '16px'
+            padding: '16px',
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
           }}>
             <div style={{
               display: 'flex',
@@ -597,8 +607,8 @@ function RRGRotationMap({ data }) {
                 Safe Haven
               </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {safe_haven_assets.map((asset) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
+              {[...safe_haven_assets].sort((a, b) => b.period_return - a.period_return).map((asset) => (
                 <div key={asset.symbol} style={{
                   display: 'flex',
                   alignItems: 'center',
