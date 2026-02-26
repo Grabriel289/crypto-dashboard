@@ -78,27 +78,47 @@ async def get_crypto_pulse() -> Dict[str, Any]:
     funding_aggregate = aggregate_funding_signals(funding_data)
     
     # Calculate NEW fragility score (Φ) with real market data for BTC
+    fragility_source = "unknown"
     try:
         # Use the rate-limited heatmap fetcher to get fragility data
         heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
         
+        # Debug logging
+        if heatmap:
+            fragility_source = heatmap.get("source", "no_source")
+            print(f"[Fragility] Heatmap source: {fragility_source}")
+        else:
+            print("[Fragility] Heatmap is None")
+        
         # Extract fragility from heatmap result
         if heatmap and heatmap.get("source") == "binance_live":
             fragility = heatmap.get("fragility", {})
+            print(f"[Fragility] Live data score: {fragility.get('score')}")
+            fragility["source"] = "binance_live"
             # Ensure we have all required fields
             if not fragility.get("score"):
                 raise ValueError("Invalid fragility data from heatmap")
+        elif heatmap and heatmap.get("fragility", {}).get("score"):
+            # Use fragility from fallback data if available
+            fragility = heatmap.get("fragility", {})
+            print(f"[Fragility] Using heatmap fallback score: {fragility.get('score')}")
+            fragility["source"] = "estimated_fallback"
+            fragility["note"] = "Using estimated data (Binance rate limited)"
         else:
-            # Fallback to legacy if data fetch fails
+            # Fallback to legacy calculation
+            print(f"[Fragility] Using legacy fallback (source={fragility_source})")
             fragility = calculate_fragility(
                 vol_percentile=45,
                 drawdown_pct=-15,
                 funding_rate=funding_data.get("BTC", {}).get("rate", 0),
                 exchange_flow_pct=0
             )
-            fragility["note"] = "Using fallback calculation - live data temporarily unavailable"
+            fragility["source"] = "legacy_calculation"
+            fragility["note"] = f"Using legacy calculation (source: {fragility_source})"
     except Exception as e:
-        print(f"Error calculating new fragility: {e}")
+        print(f"[Fragility] Error: {e}")
+        import traceback
+        traceback.print_exc()
         # Fallback to legacy calculation
         fragility = calculate_fragility(
             vol_percentile=45,
@@ -106,7 +126,10 @@ async def get_crypto_pulse() -> Dict[str, Any]:
             funding_rate=funding_data.get("BTC", {}).get("rate", 0),
             exchange_flow_pct=0
         )
-        fragility["note"] = "Using fallback calculation"
+        fragility["note"] = f"Using fallback (error: {str(e)[:50]})"
+    
+    # Add source info for debugging
+    fragility["_debug_source"] = fragility_source
     
     # Fetch Derivative Sentiment (real data from Binance Futures)
     derivative_sentiment = await derivative_sentiment_fetcher.get_sentiment()
