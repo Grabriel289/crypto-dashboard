@@ -37,13 +37,17 @@ class RegimeResult:
 
 class RRGEngine:
     """
-    RRG Calculation Engine (Weekly Data).
+    RRG Calculation Engine.
     
     Calculates RS-Ratio (X-axis) and RS-Momentum (Y-axis) for ETFs.
-    Uses weekly data to filter out daily market noise.
+    
+    Data Process:
+    1. Fetch daily prices from Yahoo Finance
+    2. Resample to weekly closing prices (Friday close)
+    3. Calculate RS using weekly data (filters daily noise)
     
     Formula:
-    1. Raw RS = ETF_Price / Benchmark_Price (weekly closes)
+    1. Raw RS = ETF_Weekly_Close / Benchmark_Weekly_Close
     2. RS-Ratio = (Raw_RS / SMA(Raw_RS, 10_weeks)) × 100
     3. RS-Momentum = (RS_Ratio / SMA(RS_Ratio, 6_weeks)) × 100
     """
@@ -87,7 +91,7 @@ class RRGEngine:
             current_rs_ratio = rs_ratio_series[-1]
             current_raw_rs = raw_rs[-1]
             
-            # Calculate period return
+            # Calculate period return (over RS_RATIO_PERIOD weeks)
             period_return = ((etf_closes[-1] / etf_closes[-RS_RATIO_PERIOD]) - 1) * 100
             
             # Determine quadrant

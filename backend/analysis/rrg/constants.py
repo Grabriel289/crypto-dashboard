@@ -20,8 +20,9 @@ ETF_SYMBOLS = {
     "UUP": {"name": "US Dollar", "category": "safe_haven", "color": "#a3e635"},
 }
 
-# RRG Calculation Parameters (Weekly Data)
-# Using weekly data to reduce market noise vs daily
+# RRG Calculation Parameters (Weekly)
+# Data is resampled from daily -> weekly (Friday close) before calculation
+# This filters out daily market noise per standard RRG methodology
 RS_RATIO_PERIOD: Final[int] = 10      # 10-week SMA for RS-Ratio (Jurrs default)
 RS_MOMENTUM_PERIOD: Final[int] = 6    # 6-week SMA for RS-Momentum (Jurrs default)
 CENTER_VALUE: Final[float] = 100.0    # Normalization center

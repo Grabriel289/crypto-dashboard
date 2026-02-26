@@ -1,7 +1,7 @@
 """Yahoo Finance data fetcher for RRG."""
 import aiohttp
 import asyncio
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 
 from .constants import ETF_SYMBOLS, YAHOO_BASE_URL, HISTORY_DAYS
@@ -26,18 +26,61 @@ class RRGDataFetcher:
         if self.session and not self.session.closed:
             await self.session.close()
     
-    async def fetch_prices(self, symbol: str, days: int = HISTORY_DAYS) -> Optional[List[float]]:
+    def _resample_to_weekly(self, timestamps: List[int], prices: List[float]) -> List[float]:
         """
-        Fetch historical weekly closing prices for a symbol.
+        Resample daily data to weekly closing prices.
+        Takes the last available price of each week (typically Friday).
         
         Args:
-            symbol: ETF ticker symbol
-            days: Number of days of history
+            timestamps: List of Unix timestamps
+            prices: List of prices corresponding to timestamps
             
         Returns:
             List of weekly closing prices (oldest first)
         """
-        cache_key = f"{symbol}_{days}"
+        if not timestamps or not prices or len(timestamps) != len(prices):
+            return []
+        
+        weekly_prices = []
+        current_week = None
+        current_week_price = None
+        
+        for ts, price in zip(timestamps, prices):
+            if price is None:
+                continue
+            
+            # Convert timestamp to datetime
+            dt = datetime.fromtimestamp(ts)
+            # Get ISO calendar week (year, week number, weekday)
+            week_key = dt.isocalendar()[:2]  # (year, week number)
+            
+            if week_key != current_week:
+                # New week - save previous week's close
+                if current_week_price is not None:
+                    weekly_prices.append(current_week_price)
+                current_week = week_key
+            
+            # Update current week's latest price
+            current_week_price = price
+        
+        # Don't forget the last week
+        if current_week_price is not None:
+            weekly_prices.append(current_week_price)
+        
+        return weekly_prices
+    
+    async def fetch_prices(self, symbol: str, days: int = HISTORY_DAYS) -> Optional[List[float]]:
+        """
+        Fetch historical daily prices and resample to weekly.
+        
+        Args:
+            symbol: ETF ticker symbol
+            days: Number of days of history (fetches more to ensure enough weeks)
+            
+        Returns:
+            List of weekly closing prices (oldest first)
+        """
+        cache_key = f"{symbol}_weekly_{days}"
         
         # Check cache
         if cache_key in self._cache:
@@ -48,9 +91,9 @@ class RRGDataFetcher:
         try:
             session = await self._get_session()
             
-            # Calculate date range
+            # Calculate date range - fetch extra days to ensure enough weeks
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=days)
+            start_date = end_date - timedelta(days=days * 2)  # 2x to ensure enough trading days
             
             # Build URL
             period1 = int(start_date.timestamp())
@@ -60,7 +103,7 @@ class RRGDataFetcher:
             params = {
                 "period1": period1,
                 "period2": period2,
-                "interval": "1wk",  # Weekly data for RRG (less noise)
+                "interval": "1d",  # Fetch daily
                 "events": "history"
             }
             
@@ -75,7 +118,7 @@ class RRGDataFetcher:
                 
                 data = await response.json()
                 
-                # Extract closing prices
+                # Extract data
                 result = data.get("chart", {}).get("result", [{}])[0]
                 timestamps = result.get("timestamp", [])
                 prices = result.get("indicators", {}).get("quote", [{}])[0].get("close", [])
@@ -83,13 +126,18 @@ class RRGDataFetcher:
                 if not prices or len(prices) < 20:
                     return None
                 
-                # Filter out None values
-                valid_prices = [p for p in prices if p is not None]
+                # Resample to weekly
+                weekly_prices = self._resample_to_weekly(timestamps, prices)
+                
+                # Need at least 16 weeks for RRG calculation (10 + 6)
+                if len(weekly_prices) < 16:
+                    print(f"Not enough weekly data for {symbol}: {len(weekly_prices)} weeks")
+                    return None
                 
                 # Cache result
-                self._cache[cache_key] = (datetime.now(), valid_prices)
+                self._cache[cache_key] = (datetime.now(), weekly_prices)
                 
-                return valid_prices
+                return weekly_prices
                 
         except Exception as e:
             print(f"Error fetching prices for {symbol}: {e}")
@@ -97,10 +145,10 @@ class RRGDataFetcher:
     
     async def fetch_all_symbols(self) -> Dict[str, List[float]]:
         """
-        Fetch prices for all tracked symbols.
+        Fetch weekly prices for all tracked symbols.
         
         Returns:
-            Dict mapping symbol to closing prices
+            Dict mapping symbol to weekly closing prices
         """
         symbols = list(ETF_SYMBOLS.keys())
         
