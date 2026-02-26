@@ -216,7 +216,7 @@ function RRGRotationMap({ data }) {
             borderRadius: '8px',
             padding: '20px',
             position: 'relative',
-            height: '460px'
+            height: '520px'
           }}>
             {/* Quadrant Backgrounds */}
             <div style={{
@@ -425,13 +425,14 @@ function RRGRotationMap({ data }) {
         </div>
 
         {/* Right Column - Sidebar */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '520px' }}>
           {/* Regime Indicator Card */}
           <div style={{
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '8px',
-            padding: '16px'
+            padding: '14px',
+            flex: '0 0 auto'
           }}>
             <div style={{ 
               fontSize: '11px', 
@@ -512,14 +513,18 @@ function RRGRotationMap({ data }) {
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '8px',
-            padding: '16px'
+            padding: '14px',
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column'
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              marginBottom: '12px',
-              paddingBottom: '12px',
+              marginBottom: '10px',
+              paddingBottom: '10px',
               borderBottom: `1px solid ${COLORS.border}`
             }}>
               <span>🔴</span>
@@ -530,8 +535,15 @@ function RRGRotationMap({ data }) {
               }}>
                 Risk Assets
               </span>
+              <span style={{
+                fontSize: '11px',
+                color: COLORS.textMuted,
+                marginLeft: 'auto'
+              }}>
+                4W Return
+              </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
               {[...risk_assets].sort((a, b) => b.period_return - a.period_return).map((asset) => (
                 <div key={asset.symbol} style={{
                   display: 'flex',
@@ -578,14 +590,18 @@ function RRGRotationMap({ data }) {
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
             borderRadius: '8px',
-            padding: '16px'
+            padding: '14px',
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column'
           }}>
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              marginBottom: '12px',
-              paddingBottom: '12px',
+              marginBottom: '10px',
+              paddingBottom: '10px',
               borderBottom: `1px solid ${COLORS.border}`
             }}>
               <span>🟡</span>
@@ -596,8 +612,15 @@ function RRGRotationMap({ data }) {
               }}>
                 Safe Haven
               </span>
+              <span style={{
+                fontSize: '11px',
+                color: COLORS.textMuted,
+                marginLeft: 'auto'
+              }}>
+                4W Return
+              </span>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
               {[...safe_haven_assets].sort((a, b) => b.period_return - a.period_return).map((asset) => (
                 <div key={asset.symbol} style={{
                   display: 'flex',

@@ -46,10 +46,10 @@ class RRGEngine:
     2. Resample to weekly closing prices (Friday close)
     3. Calculate RS using weekly data (filters daily noise)
     
-    Formula:
+    Formula (Responsive Settings):
     1. Raw RS = ETF_Weekly_Close / Benchmark_Weekly_Close
-    2. RS-Ratio = (Raw_RS / SMA(Raw_RS, 10_weeks)) × 100
-    3. RS-Momentum = (RS_Ratio / SMA(RS_Ratio, 6_weeks)) × 100
+    2. RS-Ratio = (Raw_RS / SMA(Raw_RS, 4_weeks)) × 100
+    3. RS-Momentum = (RS_Ratio / SMA(RS_Ratio, 2_weeks)) × 100
     """
     
     def __init__(self):
@@ -91,7 +91,7 @@ class RRGEngine:
             current_rs_ratio = rs_ratio_series[-1]
             current_raw_rs = raw_rs[-1]
             
-            # Calculate period return (over RS_RATIO_PERIOD weeks)
+            # Calculate 4-week period return
             period_return = ((etf_closes[-1] / etf_closes[-RS_RATIO_PERIOD]) - 1) * 100
             
             # Determine quadrant

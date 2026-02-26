@@ -22,9 +22,9 @@ ETF_SYMBOLS = {
 
 # RRG Calculation Parameters (Weekly)
 # Data is resampled from daily -> weekly (Friday close) before calculation
-# This filters out daily market noise per standard RRG methodology
-RS_RATIO_PERIOD: Final[int] = 10      # 10-week SMA for RS-Ratio (Jurrs default)
-RS_MOMENTUM_PERIOD: Final[int] = 6    # 6-week SMA for RS-Momentum (Jurrs default)
+# Shorter periods for faster trend detection (more responsive)
+RS_RATIO_PERIOD: Final[int] = 4       # 4-week SMA for RS-Ratio (responsive)
+RS_MOMENTUM_PERIOD: Final[int] = 2    # 2-week SMA for RS-Momentum (responsive)
 CENTER_VALUE: Final[float] = 100.0    # Normalization center
 
 # Regime Detection
