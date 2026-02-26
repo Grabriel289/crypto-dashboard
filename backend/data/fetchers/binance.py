@@ -4,6 +4,8 @@ import pandas as pd
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
+from data.utils.rate_limiter import binance_rate_limiter
+
 
 BINANCE_SPOT_URL = "https://api.binance.com"
 BINANCE_FUTURES_URL = "https://fapi.binance.com"
@@ -88,13 +90,14 @@ class BinanceFetcher:
             return None
     
     async def fetch_funding_rate(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Fetch current funding rate."""
-        url = f"{BINANCE_FUTURES_URL}/fapi/v1/fundingRate?symbol={symbol}&limit=1"
-        
-        async with aiohttp.ClientSession() as session:
-            try:
+        """Fetch current funding rate with rate limiting."""
+        async def _do_fetch():
+            url = f"{BINANCE_FUTURES_URL}/fapi/v1/fundingRate?symbol={symbol}&limit=1"
+            async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:
+                        if response.status == 429:
+                            raise Exception("429 Too Many Requests for fundingRate")
                         return None
                     data = await response.json()
                     if data:
@@ -105,18 +108,25 @@ class BinanceFetcher:
                             "source": "binance"
                         }
                     return None
-            except Exception as e:
-                print(f"Binance funding fetch error for {symbol}: {e}")
-                return None
+        
+        try:
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch,
+                endpoint="fundingRate"
+            )
+        except Exception as e:
+            print(f"Binance funding fetch error for {symbol}: {e}")
+            return None
     
     async def fetch_open_interest(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Fetch open interest."""
-        url = f"{BINANCE_FUTURES_URL}/fapi/v1/openInterest?symbol={symbol}"
-        
-        async with aiohttp.ClientSession() as session:
-            try:
+        """Fetch open interest with rate limiting."""
+        async def _do_fetch():
+            url = f"{BINANCE_FUTURES_URL}/fapi/v1/openInterest?symbol={symbol}"
+            async with aiohttp.ClientSession() as session:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:
+                        if response.status == 429:
+                            raise Exception("429 Too Many Requests for openInterest")
                         return None
                     data = await response.json()
                     return {
@@ -124,9 +134,15 @@ class BinanceFetcher:
                         "open_interest": float(data["openInterest"]),
                         "source": "binance"
                     }
-            except Exception as e:
-                print(f"Binance OI fetch error for {symbol}: {e}")
-                return None
+        
+        try:
+            return await binance_rate_limiter.execute_with_retry(
+                _do_fetch,
+                endpoint="openInterest"
+            )
+        except Exception as e:
+            print(f"Binance OI fetch error for {symbol}: {e}")
+            return None
 
 
 # Singleton instance
