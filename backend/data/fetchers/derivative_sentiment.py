@@ -20,6 +20,10 @@ class DerivativeSentimentFetcher:
     def __init__(self):
         self._session: aiohttp.ClientSession = None
         self._session_lock = asyncio.Lock()
+        # In-memory cache: (cached_at: datetime, data: dict)
+        self._cache: tuple = None
+        self._cache_ttl = 300        # 5 minutes for live data
+        self._fallback_cache_ttl = 60  # 1 minute when fallback — retry sooner
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -286,6 +290,18 @@ class DerivativeSentimentFetcher:
     
     async def get_sentiment(self) -> Dict[str, Any]:
         """Get derivative sentiment - tries CoinGlass cache first, then Binance API with rate limiting."""
+        # Return in-memory cache if still fresh
+        if self._cache is not None:
+            cached_at, cached_data = self._cache
+            age = (datetime.utcnow() - cached_at).total_seconds()
+            is_fallback_result = any(
+                c.get("is_fallback") for c in cached_data.get("coins", {}).values()
+            )
+            ttl = self._fallback_cache_ttl if is_fallback_result else self._cache_ttl
+            if age < ttl:
+                print(f"[DerivativeSentiment] Using cache ({age:.0f}s old, ttl={ttl}s)")
+                return cached_data
+
         results = {}
         
         # First, try to load from CoinGlass scraper cache
@@ -368,12 +384,16 @@ class DerivativeSentimentFetcher:
         
         # Generate signal
         signal = self.generate_signal(results)
-        
-        return {
+
+        result = {
             "coins": results,
             "signal": signal,
-            "timestamp": asyncio.get_event_loop().time()
+            "timestamp": datetime.utcnow().isoformat()
         }
+
+        # Store in cache
+        self._cache = (datetime.utcnow(), result)
+        return result
     
     def _get_fallback_data(self, symbol: str) -> Dict[str, Any]:
         """Fallback data when API fails - uses realistic market data."""
