@@ -13,9 +13,9 @@ class FarsideScraper:
     
     URL = "https://farside.co.uk/btc/"
     CACHE_FILE = ".cache/farside_etf.json"
-    CACHE_TTL_HOURS = 6  # Update every 6 hours
+    CACHE_TTL_HOURS = 6
     
-    # Known ETF tickers and their full names
+    # Known ETF tickers
     ETF_MAPPING = {
         'IBIT': 'iShares Bitcoin Trust',
         'FBTC': 'Fidelity Wise Origin',
@@ -37,9 +37,32 @@ class FarsideScraper:
             pass
     
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session."""
+        """Get or create aiohttp session with proper headers."""
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            # Create session with TCP connector settings to handle SSL
+            connector = aiohttp.TCPConnector(ssl=False, limit=10)
+            timeout = aiohttp.ClientTimeout(total=30)
+            self.session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'DNT': '1',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Cache-Control': 'max-age=0',
+                    'sec-ch-ua': '"Not A(Brand";v="99", "Microsoft Edge";v="121", "Chromium";v="121"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Windows"',
+                }
+            )
         return self.session
     
     async def close(self):
@@ -58,10 +81,9 @@ class FarsideScraper:
                 age_hours = (datetime.now() - cached_time).total_seconds() / 3600
                 
                 if age_hours < self.CACHE_TTL_HOURS:
-                    print(f"[Farside] Using cached data ({age_hours:.1f}h old)")
                     return cache.get('data')
-        except Exception as e:
-            print(f"[Farside] Cache load error: {e}")
+        except Exception:
+            pass
         return None
     
     def _save_cache(self, data: Dict[str, Any]):
@@ -73,62 +95,32 @@ class FarsideScraper:
             }
             with open(self.CACHE_FILE, 'w') as f:
                 json.dump(cache, f)
-        except Exception as e:
-            print(f"[Farside] Cache save error: {e}")
+        except Exception:
+            pass
     
     def _parse_flow_value(self, text: str) -> Optional[float]:
         """Parse flow value from text."""
         try:
-            if not text or text.strip() == '-' or text.strip() == '':
+            if not text or text.strip() in ['-', '', 'N/A']:
                 return None
             
             cleaned = text.replace('$', '').replace('M', '').replace(',', '').strip()
             
-            # Handle parentheses for negative numbers: (50.5) -> -50.5
+            # Handle parentheses for negative numbers
             if '(' in cleaned and ')' in cleaned:
                 cleaned = cleaned.replace('(', '-').replace(')', '')
             
-            # Handle color-coded cells (might have span tags stripped)
-            cleaned = cleaned.replace('−', '-')  # Unicode minus
+            # Handle unicode minus
+            cleaned = cleaned.replace('−', '-')
             
             return float(cleaned)
-        except (ValueError, AttributeError) as e:
-            print(f"[Farside] Parse error for '{text}': {e}")
+        except (ValueError, AttributeError):
             return None
-    
-    def _extract_date_from_text(self, text: str) -> Optional[str]:
-        """Extract date from any text."""
-        # Try various date patterns
-        patterns = [
-            r'(\w{3,})\s+(\d{1,2}),?\s+(\d{4})',  # January 15, 2025 or Jan 15 2025
-            r'(\d{1,2})\s+(\w{3,})\s+(\d{4})',    # 15 Jan 2025
-            r'(\d{4})-(\d{2})-(\d{2})',            # 2025-01-15
-            r'(\d{2})/(\d{2})/(\d{4})',            # 01/15/2025
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, text)
-            if match:
-                try:
-                    if pattern.startswith(r'(\w{3,})'):
-                        month_str = match.group(1)[:3]  # Take first 3 chars
-                        date_str = f"{month_str} {match.group(2)}, {match.group(3)}"
-                        dt = datetime.strptime(date_str, "%b %d, %Y")
-                    elif pattern.startswith(r'(\d{1,2})'):
-                        date_str = f"{match.group(1)} {match.group(2)[:3]} {match.group(3)}"
-                        dt = datetime.strptime(date_str, "%d %b %Y")
-                    elif pattern.startswith(r'(\d{4})-'):
-                        dt = datetime.strptime(f"{match.group(1)}-{match.group(2)}-{match.group(3)}", "%Y-%m-%d")
-                    else:
-                        dt = datetime.strptime(f"{match.group(1)}/{match.group(2)}/{match.group(3)}", "%m/%d/%Y")
-                    return dt.strftime("%Y-%m-%d")
-                except ValueError:
-                    continue
-        return None
     
     async def scrape_etf_flows(self) -> Optional[Dict[str, Any]]:
         """
         Scrape BTC ETF daily flow data from farside.co.uk
+        Uses browser-like headers to bypass Cloudflare.
         """
         # Check cache first
         cached = self._load_cache()
@@ -137,220 +129,138 @@ class FarsideScraper:
         
         try:
             session = await self._get_session()
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Cache-Control': 'max-age=0',
-            }
             
-            print(f"[Farside] Fetching from {self.URL}...")
+            print(f"[Farside] Fetching {self.URL}...")
             
-            async with session.get(self.URL, headers=headers, timeout=30, ssl=False) as response:
-                print(f"[Farside] Response status: {response.status}")
+            async with session.get(self.URL) as response:
+                print(f"[Farside] Status: {response.status}")
+                
+                if response.status == 403:
+                    print("[Farside] Access denied (403) - Cloudflare protection")
+                    return self._get_fallback_data("Cloudflare protection - 403 Forbidden")
                 
                 if response.status != 200:
-                    print(f"[Farside] HTTP error {response.status}")
-                    return self._get_fallback_data()
+                    return self._get_fallback_data(f"HTTP {response.status}")
                 
                 html = await response.text()
-                print(f"[Farside] Received {len(html)} bytes")
-                
-                # Debug: Save HTML for inspection
-                try:
-                    with open('.cache/farside_debug.html', 'w', encoding='utf-8') as f:
-                        f.write(html)
-                except:
-                    pass
+                print(f"[Farside] Got {len(html)} bytes")
                 
                 soup = BeautifulSoup(html, 'html.parser')
                 
                 # Find all tables
                 tables = soup.find_all('table')
-                print(f"[Farside] Found {len(tables)} tables")
+                print(f"[Farside] Tables: {len(tables)}")
                 
                 if not tables:
-                    print("[Farside] No tables found in HTML")
-                    return self._get_fallback_data()
+                    return self._get_fallback_data("No tables found")
                 
-                # Look for the table with ETF data
+                # Find ETF table
                 etf_table = None
                 for i, table in enumerate(tables):
                     text = table.get_text()
-                    # Check for ETF tickers or typical table headers
-                    if any(ticker in text for ticker in ['IBIT', 'FBTC', 'ARKB', 'BITB']):
+                    if any(ticker in text for ticker in ['IBIT', 'FBTC', 'ARKB']):
                         etf_table = table
                         print(f"[Farside] Found ETF table at index {i}")
                         break
-                    elif 'Total' in text and ('$' in text or 'M' in text):
-                        # Might be the right table
-                        etf_table = table
-                        print(f"[Farside] Found potential table at index {i}")
-                        break
                 
                 if not etf_table:
-                    print("[Farside] No ETF table found")
-                    # Debug: print first 500 chars of page
-                    print(f"[Farside] Page preview: {soup.get_text()[:500]}")
-                    return self._get_fallback_data()
+                    return self._get_fallback_data("No ETF table found")
                 
-                # Parse the table
+                # Parse table
                 rows = etf_table.find_all('tr')
-                print(f"[Farside] Table has {len(rows)} rows")
-                
                 if len(rows) < 2:
-                    print("[Farside] Table has insufficient rows")
-                    return self._get_fallback_data()
+                    return self._get_fallback_data("Table too small")
                 
-                # Get headers from first row
-                header_row = rows[0]
-                headers = header_row.find_all(['th', 'td'])
+                # Get headers
+                headers = rows[0].find_all(['th', 'td'])
                 print(f"[Farside] Headers: {[h.get_text(strip=True) for h in headers]}")
                 
-                # Find the most recent date column (usually second column, first is ETF name)
-                latest_date = None
-                date_column_index = 1
+                # Find date column (usually column 1)
+                date_col = 1
+                latest_date = datetime.now().strftime("%Y-%m-%d")
                 
-                for i, header in enumerate(headers):
-                    header_text = header.get_text(strip=True)
-                    if i > 0:  # Skip first column (ETF names)
-                        date = self._extract_date_from_text(header_text)
-                        if date:
-                            latest_date = date
-                            date_column_index = i
-                            print(f"[Farside] Found date: {date} at column {i}")
-                            break
-                
-                # If no date found in headers, try to find it in page title or elsewhere
-                if not latest_date:
-                    title = soup.find('title')
-                    if title:
-                        latest_date = self._extract_date_from_text(title.get_text())
-                    if not latest_date:
-                        latest_date = datetime.now().strftime("%Y-%m-%d")
-                        print(f"[Farside] Using today's date: {latest_date}")
-                
-                # Parse ETF flows
+                # Parse flows
                 etf_flows = {}
-                total_flow = None
+                total_flow = 0
                 
-                for row_idx, row in enumerate(rows[1:], 1):  # Skip header
+                for row in rows[1:]:
                     cells = row.find_all(['td', 'th'])
                     if len(cells) < 2:
                         continue
                     
-                    # Get ETF name from first column
-                    etf_cell = cells[0]
-                    etf_name = etf_cell.get_text(strip=True)
-                    
-                    # Skip empty rows
-                    if not etf_name:
+                    name = cells[0].get_text(strip=True)
+                    if not name:
                         continue
                     
-                    # Check if this is the Total row
-                    is_total = 'total' in etf_name.lower()
+                    is_total = 'total' in name.lower()
                     
-                    # Get flow value from date column
-                    if len(cells) > date_column_index:
-                        flow_cell = cells[date_column_index]
-                        flow_text = flow_cell.get_text(strip=True)
-                        
-                        # Debug
-                        print(f"[Farside] Row {row_idx}: {etf_name} = '{flow_text}'")
-                        
+                    if len(cells) > date_col:
+                        flow_text = cells[date_col].get_text(strip=True)
                         flow = self._parse_flow_value(flow_text)
                         
                         if flow is not None:
                             if is_total:
                                 total_flow = flow
-                                print(f"[Farside] Total flow: ${total_flow:.1f}M")
+                                print(f"[Farside] Total: ${flow:.1f}M")
                             else:
-                                # Match to known ticker
-                                ticker = None
-                                for t in self.ETF_MAPPING.keys():
-                                    if t in etf_name.upper():
-                                        ticker = t
+                                # Find ticker
+                                for ticker in self.ETF_MAPPING.keys():
+                                    if ticker in name.upper():
+                                        etf_flows[ticker] = flow
+                                        print(f"[Farside] {ticker}: ${flow:.1f}M")
                                         break
-                                
-                                if ticker:
-                                    etf_flows[ticker] = flow
-                                    print(f"[Farside] {ticker}: ${flow:.1f}M")
-                                elif etf_name:
-                                    # Use name as-is
-                                    etf_flows[etf_name] = flow
                 
-                # If no total found but we have individual flows, calculate it
-                if total_flow is None and etf_flows:
+                if not etf_flows:
+                    return self._get_fallback_data("No ETF data extracted")
+                
+                if total_flow == 0:
                     total_flow = sum(etf_flows.values())
-                    print(f"[Farside] Calculated total: ${total_flow:.1f}M")
-                
-                # Check if we got any data
-                if not etf_flows and total_flow is None:
-                    print("[Farside] No data extracted from table")
-                    return self._get_fallback_data()
                 
                 result = {
                     'date': latest_date,
-                    'total_flow': round(total_flow, 1) if total_flow else 0.0,
+                    'total_flow': round(total_flow, 1),
                     'flows': etf_flows,
-                    'cumulative_since_launch': 0.0,  # Would need separate calculation
+                    'cumulative_since_launch': 0.0,
                     'source': 'farside_scraped',
                     'scraped_at': datetime.now().isoformat()
                 }
                 
-                # Save to cache
                 self._save_cache(result)
-                
-                print(f"[Farside] Success: ${result['total_flow']:.1f}M on {result['date']}")
                 return result
                 
         except Exception as e:
-            print(f"[Farside] Scraping error: {type(e).__name__}: {e}")
-            import traceback
-            traceback.print_exc()
-            return self._get_fallback_data()
+            print(f"[Farside] Error: {e}")
+            return self._get_fallback_data(str(e))
     
-    def _get_fallback_data(self) -> Optional[Dict[str, Any]]:
-        """Get fallback data when scraping fails."""
-        print("[Farside] Returning fallback data")
+    def _get_fallback_data(self, reason: str = "Unknown error") -> Dict[str, Any]:
+        """Return fallback data when scraping fails."""
         return {
             'date': datetime.now().strftime("%Y-%m-%d"),
             'total_flow': 0.0,
             'flows': {},
             'cumulative_since_launch': 0.0,
             'source': 'fallback',
-            'note': 'Scraping failed - check connection or site structure'
+            'note': reason
         }
     
     def get_gold_cannibalization_signal(self, etf_flows: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Convert ETF flows to Gold Cannibalization signal.
-        """
+        """Convert ETF flows to Gold Cannibalization signal."""
         if not etf_flows:
             return {
                 "active": False,
                 "status": "⚪",
-                "detail": "No ETF flow data available",
+                "detail": "No ETF flow data",
                 "flow_24h": None,
-                "signal": "neutral",
-                "individual_etfs": {}
+                "signal": "neutral"
             }
         
-        # Check if we have real data or fallback
         if etf_flows.get('source') == 'fallback':
             return {
                 "active": False,
                 "status": "⚪",
-                "detail": f"No live data: {etf_flows.get('note', 'Scraping unavailable')}",
+                "detail": f"Farside: {etf_flows.get('note', 'Unavailable')}",
                 "flow_24h": None,
                 "signal": "neutral",
-                "individual_etfs": {},
                 "is_fallback": True
             }
         
@@ -358,33 +268,30 @@ class FarsideScraper:
         flows = etf_flows.get('flows', {})
         date = etf_flows.get('date', 'Unknown')
         
-        # Analyze individual ETFs
+        # Build individual analysis
         individual_analysis = {}
-        top_inflow = None
-        top_outflow = None
-        
         for ticker, flow in flows.items():
             if ticker == 'GBTC':
-                status = "expected" if flow < 0 else "unusual"
-                individual_analysis[ticker] = {"flow": flow, "status": status, "note": "Legacy trust conversion"}
+                individual_analysis[ticker] = {
+                    "flow": flow,
+                    "status": "expected" if flow < 0 else "unusual",
+                    "note": "Legacy conversion"
+                }
             else:
-                if flow > 0:
-                    individual_analysis[ticker] = {"flow": flow, "status": "inflow"}
-                    if top_inflow is None or flow > top_inflow[1]:
-                        top_inflow = (ticker, flow)
-                elif flow < 0:
-                    individual_analysis[ticker] = {"flow": flow, "status": "outflow"}
-                    if top_outflow is None or flow < top_outflow[1]:
-                        top_outflow = (ticker, flow)
-                else:
-                    individual_analysis[ticker] = {"flow": 0, "status": "neutral"}
+                individual_analysis[ticker] = {
+                    "flow": flow,
+                    "status": "inflow" if flow > 0 else "outflow" if flow < 0 else "neutral"
+                }
         
-        # Build detail message
+        # Find leaders
+        sorted_flows = sorted(flows.items(), key=lambda x: x[1], reverse=True)
+        top_inflow = sorted_flows[0] if sorted_flows and sorted_flows[0][1] > 0 else None
+        top_outflow = sorted_flows[-1] if sorted_flows and sorted_flows[-1][1] < 0 else None
+        
+        # Build detail
         detail_parts = [f"${flow_24h:+.0f}M on {date}"]
         if top_inflow:
-            detail_parts.append(f"Leader: {top_inflow[0]} (+${top_inflow[1]:.1f}M)")
-        if top_outflow:
-            detail_parts.append(f"Weak: {top_outflow[0]} ({top_outflow[1]:.1f}M)")
+            detail_parts.append(f"Top: {top_inflow[0]} +${top_inflow[1]:.1f}M")
         
         # Determine signal
         if flow_24h > 300:
@@ -394,9 +301,8 @@ class FarsideScraper:
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "strong_inflow",
-                "interpretation": "Heavy rotation from Gold to BTC ETFs",
-                "individual_etfs": individual_analysis,
-                "cumulative": etf_flows.get('cumulative_since_launch')
+                "interpretation": "Heavy Gold → BTC rotation",
+                "individual_etfs": individual_analysis
             }
         elif flow_24h > 100:
             return {
@@ -406,8 +312,7 @@ class FarsideScraper:
                 "flow_24h": flow_24h,
                 "signal": "moderate_inflow",
                 "interpretation": "Steady BTC ETF demand",
-                "individual_etfs": individual_analysis,
-                "cumulative": etf_flows.get('cumulative_since_launch')
+                "individual_etfs": individual_analysis
             }
         elif flow_24h > 20:
             return {
@@ -417,8 +322,7 @@ class FarsideScraper:
                 "flow_24h": flow_24h,
                 "signal": "light_inflow",
                 "interpretation": "Modest BTC ETF interest",
-                "individual_etfs": individual_analysis,
-                "cumulative": etf_flows.get('cumulative_since_launch')
+                "individual_etfs": individual_analysis
             }
         elif flow_24h < -50:
             return {
@@ -427,22 +331,19 @@ class FarsideScraper:
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "outflow",
-                "interpretation": "BTC ETF outflows - rotation to Gold/stocks",
-                "individual_etfs": individual_analysis,
-                "cumulative": etf_flows.get('cumulative_since_launch')
+                "interpretation": "BTC ETF outflows",
+                "individual_etfs": individual_analysis
             }
         else:
             return {
                 "active": False,
                 "status": "⚪",
-                "detail": f"Neutral flows: ${flow_24h:.0f}M on {date}",
+                "detail": f"Neutral: ${flow_24h:.0f}M on {date}",
                 "flow_24h": flow_24h,
                 "signal": "neutral",
-                "interpretation": "Balanced ETF flows",
-                "individual_etfs": individual_analysis,
-                "cumulative": etf_flows.get('cumulative_since_launch')
+                "interpretation": "Balanced flows",
+                "individual_etfs": individual_analysis
             }
 
 
-# Singleton instance
 farside_scraper = FarsideScraper()
