@@ -167,15 +167,18 @@ class DataScheduler:
         """Update fragility metrics - runs hourly to avoid rate limits."""
         try:
             print(f"[{datetime.now()}] Updating fragility metrics...")
-            # Fetch full heatmap data from Binance (rate limited endpoint)
             heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
-            if heatmap:
+            source = heatmap.get('source', 'unknown') if heatmap else 'none'
+            frag_score = heatmap.get('fragility', {}).get('score', 'N/A') if heatmap else 'N/A'
+
+            if heatmap and source == 'binance_live':
+                # Only cache confirmed live data — never cache fallback values
                 data_cache.set('fragility', heatmap)
-                frag_score = heatmap.get('fragility', {}).get('score', 'N/A')
-                source = heatmap.get('source', 'unknown')
-                print(f"[{datetime.now()}] Fragility updated: score={frag_score}, source={source}")
+                print(f"[{datetime.now()}] Fragility cached: score={frag_score}, source={source}")
             else:
-                print(f"[{datetime.now()}] Failed to fetch fragility data")
+                # Fallback was returned (cold-start network issue, rate limit, etc.)
+                # Do NOT write to data_cache so the API endpoint will do its own live fetch
+                print(f"[{datetime.now()}] Fragility got fallback (source={source}), skipping cache")
         except Exception as e:
             print(f"[{datetime.now()}] Error updating fragility: {e}")
             import traceback

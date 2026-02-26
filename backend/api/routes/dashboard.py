@@ -81,24 +81,32 @@ async def get_crypto_pulse() -> Dict[str, Any]:
     from data.scheduler import data_cache
     cached_fragility = data_cache.get('fragility')
     
-    if cached_fragility and cached_fragility.get('fragility', {}).get('score') is not None:
-        # Use cached fragility data (updated hourly by scheduler)
+    cache_is_live = (
+        cached_fragility is not None and
+        cached_fragility.get('source') == 'binance_live' and
+        cached_fragility.get('fragility', {}).get('score') is not None
+    )
+
+    if cache_is_live:
+        # Use cached live data (scheduler updates this hourly)
         fragility = cached_fragility.get('fragility', {})
         fragility['cached_at'] = data_cache.get_timestamp('fragility').isoformat() if data_cache.get_timestamp('fragility') else None
         fragility['note'] = 'Hourly cached data (rate limit protection)'
-        print(f"[Fragility] Using cached data: score={fragility.get('score')}, source={cached_fragility.get('source', 'unknown')}")
+        print(f"[Fragility] Using cached live data: score={fragility.get('score')}")
     else:
-        # No scheduler cache yet — fetch live directly (liquidation_fetcher has its own 5-min cache)
-        print("[Fragility] No scheduler cache, fetching live from Binance...")
+        # Cache is empty or has fallback data (e.g. cold-start network issue) — fetch live now
+        src = cached_fragility.get('source', 'none') if cached_fragility else 'none'
+        print(f"[Fragility] Cache not live (source={src}), fetching live from Binance...")
         try:
             heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
             if heatmap and heatmap.get('fragility', {}).get('score') is not None:
                 fragility = heatmap.get('fragility', {})
-                fragility['source'] = heatmap.get('source', 'binance_live')
+                fragility['source'] = heatmap.get('source', 'unknown')
                 fragility['note'] = 'Live fetch (scheduler cache not yet populated)'
-                # Warm the scheduler cache so subsequent requests use it
-                data_cache.set('fragility', heatmap)
-                print(f"[Fragility] Live fetch succeeded: score={fragility.get('score')}")
+                # Only warm the scheduler cache with confirmed live data
+                if heatmap.get('source') == 'binance_live':
+                    data_cache.set('fragility', heatmap)
+                print(f"[Fragility] Live fetch: score={fragility.get('score')}, source={heatmap.get('source')}")
             else:
                 raise ValueError("Heatmap returned no fragility score")
         except Exception as e:
