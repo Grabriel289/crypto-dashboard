@@ -205,31 +205,32 @@ class LiquidationFetcher:
     async def get_heatmap(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
         """
         Get complete liquidation heatmap with fragility score.
-        
-        This fetches all required data and calculates:
-        1. Market Fragility Score (Φ)
-        2. Estimated Liquidation Heatmap
-        3. Major liquidation zones
         """
         from analysis.liquidation_heatmap import calculate_complete_heatmap
         from scoring.fragility import calculate_depth_2pct
         
+        print(f"[Heatmap] Starting fetch for {symbol}...")
+        
         try:
-            # Fetch all required data with staggered timing to avoid rate limits
+            # Fetch all required data
             oi_data = await self.fetch_open_interest(symbol)
-            await asyncio.sleep(0.2)  # Small delay between requests
+            print(f"[Heatmap] OI data: {'OK' if oi_data else 'FAILED'}")
+            await asyncio.sleep(0.2)
             
             funding_data = await self.fetch_funding_rate(symbol)
+            print(f"[Heatmap] Funding data: {'OK' if funding_data else 'FAILED'}")
             await asyncio.sleep(0.2)
             
             prices = await self.fetch_prices(symbol)
+            print(f"[Heatmap] Prices data: {'OK' if prices else 'FAILED'}")
             await asyncio.sleep(0.2)
             
             depth = await self.fetch_orderbook_depth(symbol)
+            print(f"[Heatmap] Depth data: {'OK' if depth else 'FAILED'}")
             await asyncio.sleep(0.2)
             
-            # Fetch funding history (needed for F_sigma)
             funding_history = await self.fetch_funding_history(symbol)
+            print(f"[Heatmap] Funding history: {'OK' if funding_history else 'FAILED'}")
             
             # Check if we have all required data
             if not all([oi_data, funding_data, prices, depth]):
@@ -238,15 +239,19 @@ class LiquidationFetcher:
                 if not funding_data: missing.append("funding")
                 if not prices: missing.append("prices")
                 if not depth: missing.append("depth")
-                print(f"[Heatmap] Missing data for {symbol}: {missing}, using fallback")
-                return self._get_fallback_data(symbol)
+                print(f"[Heatmap] Missing data: {missing}")
+                fallback = self._get_fallback_data(symbol)
+                fallback["_debug_missing"] = missing
+                return fallback
             
             # Calculate OI in USD
             oi_usd = oi_data["openInterest"] * prices["perp"]
+            print(f"[Heatmap] OI USD: ${oi_usd/1e9:.2f}B")
             
             # Calculate depth within 2%
             mid_price = (prices["spot"] + prices["perp"]) / 2
             depth_2pct = calculate_depth_2pct(depth["bids"], depth["asks"], mid_price)
+            print(f"[Heatmap] Depth 2%: ${depth_2pct/1e6:.1f}M")
             
             # Calculate complete heatmap
             result = calculate_complete_heatmap(
@@ -261,11 +266,14 @@ class LiquidationFetcher:
             
             result["timestamp"] = datetime.utcnow().isoformat()
             result["source"] = "binance_live"
+            print(f"[Heatmap] Success! Fragility score: {result.get('fragility', {}).get('score')}")
             
             return result
             
         except Exception as e:
-            print(f"Error calculating heatmap for {symbol}: {e}")
+            print(f"[Heatmap] Error: {e}")
+            import traceback
+            traceback.print_exc()
             return self._get_fallback_data(symbol)
     
     def _get_fallback_data(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
