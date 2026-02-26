@@ -204,9 +204,10 @@ class DataScheduler:
             self._update_funding(),
             self._update_crypto_prices(),
         )
-        # Run fragility separately after a short pause so other Binance calls settle
-        print(">>> Running fragility fetch (staggered)...")
-        await asyncio.sleep(3)
+        # Run fragility separately after a longer pause — the price fetch for ~43 sector
+        # coins fires many Binance requests; we need to let the rate limiter settle first.
+        print(">>> Running fragility fetch (staggered 15s)...")
+        await asyncio.sleep(15)
         await self._update_fragility()
         print(">>> Initial data fetch complete")
 

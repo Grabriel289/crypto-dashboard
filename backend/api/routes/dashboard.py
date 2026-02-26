@@ -88,16 +88,29 @@ async def get_crypto_pulse() -> Dict[str, Any]:
         fragility['note'] = 'Hourly cached data (rate limit protection)'
         print(f"[Fragility] Using cached data: score={fragility.get('score')}, source={cached_fragility.get('source', 'unknown')}")
     else:
-        # No cached data available - use legacy calculation
-        print("[Fragility] No cached data, using legacy calculation")
-        fragility = calculate_fragility(
-            vol_percentile=45,
-            drawdown_pct=-15,
-            funding_rate=funding_data.get("BTC", {}).get("rate", 0),
-            exchange_flow_pct=0
-        )
-        fragility["source"] = "legacy_calculation"
-        fragility["note"] = "Waiting for hourly scheduler update"
+        # No scheduler cache yet — fetch live directly (liquidation_fetcher has its own 5-min cache)
+        print("[Fragility] No scheduler cache, fetching live from Binance...")
+        try:
+            heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
+            if heatmap and heatmap.get('fragility', {}).get('score') is not None:
+                fragility = heatmap.get('fragility', {})
+                fragility['source'] = heatmap.get('source', 'binance_live')
+                fragility['note'] = 'Live fetch (scheduler cache not yet populated)'
+                # Warm the scheduler cache so subsequent requests use it
+                data_cache.set('fragility', heatmap)
+                print(f"[Fragility] Live fetch succeeded: score={fragility.get('score')}")
+            else:
+                raise ValueError("Heatmap returned no fragility score")
+        except Exception as e:
+            print(f"[Fragility] Live fetch failed ({e}), using legacy fallback")
+            fragility = calculate_fragility(
+                vol_percentile=45,
+                drawdown_pct=-15,
+                funding_rate=funding_data.get("BTC", {}).get("rate", 0),
+                exchange_flow_pct=0
+            )
+            fragility["source"] = "legacy_fallback"
+            fragility["note"] = "Live fetch failed; scheduler will retry hourly"
     
     # Fetch Derivative Sentiment (real data from Binance Futures)
     derivative_sentiment = await derivative_sentiment_fetcher.get_sentiment()
