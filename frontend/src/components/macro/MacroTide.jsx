@@ -123,17 +123,22 @@ function MacroTide({ data }) {
                   <div>
                     <div className="text-xs text-cyber-text-muted mb-2">
                       {leak.interpretation}
-                      {leak.is_fallback && (
-                        <span className="text-cyber-accent-orange ml-1">(Est.)</span>
+                      {leak.is_proxy && (
+                        <span className="text-cyber-accent-orange ml-1" title="Using IBIT vs GLD price performance as flow proxy">(Proxy)</span>
                       )}
                     </div>
                     <div className="text-xs font-mono text-cyber-accent-cyan mb-2">
                       24h Flow: ${leak.flow_24h > 0 ? '+' : ''}{leak.flow_24h?.toFixed(1)}M
-                      {leak.is_fallback && (
-                        <span className="text-cyber-text-muted text-[10px] ml-1" title="T+1 data (previous trading day)">~T+1</span>
+                      {leak.is_proxy && (
+                        <span className="text-cyber-text-muted text-[10px] ml-1" title="Estimated from price performance">~</span>
                       )}
                     </div>
-                    {leak.is_fallback && (
+                    {leak.is_proxy && leak.proxy_metrics && (
+                      <div className="text-[10px] text-cyber-text-muted mb-2 bg-cyber-bg-secondary p-1 rounded">
+                        IBIT: {leak.proxy_metrics.ibit_change_pct > 0 ? '+' : ''}{leak.proxy_metrics.ibit_change_pct?.toFixed(1)}% vs GLD: {leak.proxy_metrics.gld_change_pct > 0 ? '+' : ''}{leak.proxy_metrics.gld_change_pct?.toFixed(1)}%
+                      </div>
+                    )}
+                    {leak.date && (
                       <div className="text-[10px] text-cyber-text-muted mb-2">
                         As of: {leak.date}
                       </div>

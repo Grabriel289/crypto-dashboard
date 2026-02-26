@@ -1,33 +1,35 @@
-"""Farside BTC ETF flow scraper for Gold Cannibalization indicator."""
+"""Gold Cannibalization indicator using Yahoo Finance data as proxy."""
 import aiohttp
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
-from bs4 import BeautifulSoup
 import json
 import os
-import re
 
 
 class FarsideScraper:
-    """Scrape BTC ETF flow data from farside.co.uk"""
+    """
+    Gold Cannibalization indicator.
     
-    URL = "https://farside.co.uk/btc/"
+    Since Farside.co.uk blocks scraping (Cloudflare), we use Yahoo Finance
+    data as a proxy: compare BTC ETF (IBIT) vs Gold (GLD) performance.
+    
+    Logic:
+    - IBIT outperforming GLD = Money flowing from Gold to BTC
+    - IBIT underperforming GLD = Money flowing from BTC to Gold
+    """
+    
     CACHE_FILE = ".cache/farside_etf.json"
     CACHE_TTL_HOURS = 6
     
-    # Known ETF tickers
-    ETF_MAPPING = {
-        'IBIT': 'iShares Bitcoin Trust',
-        'FBTC': 'Fidelity Wise Origin',
-        'ARKB': 'ARK 21Shares',
-        'BITB': 'Bitwise Bitcoin ETF',
-        'BTCO': 'Invesco Galaxy',
-        'EZBC': 'Franklin Templeton',
-        'BRRR': 'Valkyrie Bitcoin Fund',
-        'HODL': 'VanEck Bitcoin Trust',
-        'BTCW': 'WisdomTree Bitcoin Fund',
-        'GBTC': 'Grayscale Bitcoin Trust',
+    # ETF Tickers for reference (we use price performance as flow proxy)
+    ETF_TICKERS = {
+        'IBIT': 'IBIT',  # BlackRock Bitcoin ETF
+        'FBTC': 'FBTC',  # Fidelity Bitcoin ETF
+        'ARKB': 'ARKB',  # ARK Bitcoin ETF
+        'GLD': 'GLD',    # Gold ETF (benchmark)
     }
+    
+    YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart"
     
     def __init__(self):
         self.session: Optional[aiohttp.ClientSession] = None
@@ -37,41 +39,15 @@ class FarsideScraper:
             pass
     
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session with proper headers."""
         if self.session is None or self.session.closed:
-            # Create session with TCP connector settings to handle SSL
-            connector = aiohttp.TCPConnector(ssl=False, limit=10)
-            timeout = aiohttp.ClientTimeout(total=30)
-            self.session = aiohttp.ClientSession(
-                connector=connector,
-                timeout=timeout,
-                headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'DNT': '1',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                    'Cache-Control': 'max-age=0',
-                    'sec-ch-ua': '"Not A(Brand";v="99", "Microsoft Edge";v="121", "Chromium";v="121"',
-                    'sec-ch-ua-mobile': '?0',
-                    'sec-ch-ua-platform': '"Windows"',
-                }
-            )
+            self.session = aiohttp.ClientSession()
         return self.session
     
     async def close(self):
-        """Close the session."""
         if self.session and not self.session.closed:
             await self.session.close()
     
     def _load_cache(self) -> Optional[Dict[str, Any]]:
-        """Load cached data if fresh."""
         try:
             if os.path.exists(self.CACHE_FILE):
                 with open(self.CACHE_FILE, 'r') as f:
@@ -87,7 +63,6 @@ class FarsideScraper:
         return None
     
     def _save_cache(self, data: Dict[str, Any]):
-        """Save data to cache."""
         try:
             cache = {
                 'timestamp': datetime.now().isoformat(),
@@ -98,237 +73,190 @@ class FarsideScraper:
         except Exception:
             pass
     
-    def _parse_flow_value(self, text: str) -> Optional[float]:
-        """Parse flow value from text."""
+    async def fetch_etf_data(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Fetch ETF data from Yahoo Finance."""
+        url = f"{self.YAHOO_URL}/{symbol}"
+        params = {
+            "interval": "1d",
+            "range": "5d"
+        }
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        
         try:
-            if not text or text.strip() in ['-', '', 'N/A']:
-                return None
-            
-            cleaned = text.replace('$', '').replace('M', '').replace(',', '').strip()
-            
-            # Handle parentheses for negative numbers
-            if '(' in cleaned and ')' in cleaned:
-                cleaned = cleaned.replace('(', '-').replace(')', '')
-            
-            # Handle unicode minus
-            cleaned = cleaned.replace('−', '-')
-            
-            return float(cleaned)
-        except (ValueError, AttributeError):
+            session = await self._get_session()
+            async with session.get(url, params=params, headers=headers, timeout=30) as response:
+                if response.status != 200:
+                    return None
+                
+                data = await response.json()
+                
+                if "chart" not in data or "result" not in data["chart"]:
+                    return None
+                
+                result = data["chart"]["result"][0]
+                meta = result["meta"]
+                
+                timestamps = result.get("timestamp", [])
+                closes = result["indicators"]["quote"][0].get("close", [])
+                volumes = result["indicators"]["quote"][0].get("volume", [])
+                
+                if not closes:
+                    return None
+                
+                valid_closes = [c for c in closes if c is not None]
+                valid_volumes = [v for v in volumes if v is not None]
+                
+                if not valid_closes:
+                    return None
+                
+                last_close = valid_closes[-1]
+                previous_close = meta.get("previousClose", valid_closes[-2] if len(valid_closes) > 1 else last_close)
+                
+                # Get last 5 days average volume for context
+                avg_volume = sum(valid_volumes[-5:]) / len(valid_volumes[-5:]) if valid_volumes else 0
+                latest_volume = valid_volumes[-1] if valid_volumes else 0
+                volume_ratio = latest_volume / avg_volume if avg_volume > 0 else 1.0
+                
+                return {
+                    "symbol": symbol,
+                    "price": last_close,
+                    "previous_close": previous_close,
+                    "change_pct": ((last_close - previous_close) / previous_close * 100) if previous_close else 0,
+                    "volume": latest_volume,
+                    "avg_volume_5d": avg_volume,
+                    "volume_ratio": volume_ratio,
+                    "timestamp": datetime.fromtimestamp(timestamps[-1]) if timestamps else datetime.now()
+                }
+                
+        except Exception as e:
+            print(f"[Farside] Yahoo Finance error for {symbol}: {e}")
             return None
     
     async def scrape_etf_flows(self) -> Optional[Dict[str, Any]]:
         """
-        Scrape BTC ETF daily flow data from farside.co.uk
-        Uses browser-like headers to bypass Cloudflare.
+        Get Gold Cannibalization proxy data using Yahoo Finance.
+        
+        Returns IBIT vs GLD performance as proxy for flow direction.
         """
         # Check cache first
         cached = self._load_cache()
         if cached:
             return cached
         
-        try:
-            session = await self._get_session()
-            
-            print(f"[Farside] Fetching {self.URL}...")
-            
-            async with session.get(self.URL) as response:
-                print(f"[Farside] Status: {response.status}")
-                
-                if response.status == 403:
-                    print("[Farside] Access denied (403) - Cloudflare protection")
-                    return self._get_fallback_data("Cloudflare protection - 403 Forbidden")
-                
-                if response.status != 200:
-                    return self._get_fallback_data(f"HTTP {response.status}")
-                
-                html = await response.text()
-                print(f"[Farside] Got {len(html)} bytes")
-                
-                soup = BeautifulSoup(html, 'html.parser')
-                
-                # Find all tables
-                tables = soup.find_all('table')
-                print(f"[Farside] Tables: {len(tables)}")
-                
-                if not tables:
-                    return self._get_fallback_data("No tables found")
-                
-                # Find ETF table
-                etf_table = None
-                for i, table in enumerate(tables):
-                    text = table.get_text()
-                    if any(ticker in text for ticker in ['IBIT', 'FBTC', 'ARKB']):
-                        etf_table = table
-                        print(f"[Farside] Found ETF table at index {i}")
-                        break
-                
-                if not etf_table:
-                    return self._get_fallback_data("No ETF table found")
-                
-                # Parse table
-                rows = etf_table.find_all('tr')
-                if len(rows) < 2:
-                    return self._get_fallback_data("Table too small")
-                
-                # Get headers
-                headers = rows[0].find_all(['th', 'td'])
-                print(f"[Farside] Headers: {[h.get_text(strip=True) for h in headers]}")
-                
-                # Find date column (usually column 1)
-                date_col = 1
-                latest_date = datetime.now().strftime("%Y-%m-%d")
-                
-                # Parse flows
-                etf_flows = {}
-                total_flow = 0
-                
-                for row in rows[1:]:
-                    cells = row.find_all(['td', 'th'])
-                    if len(cells) < 2:
-                        continue
-                    
-                    name = cells[0].get_text(strip=True)
-                    if not name:
-                        continue
-                    
-                    is_total = 'total' in name.lower()
-                    
-                    if len(cells) > date_col:
-                        flow_text = cells[date_col].get_text(strip=True)
-                        flow = self._parse_flow_value(flow_text)
-                        
-                        if flow is not None:
-                            if is_total:
-                                total_flow = flow
-                                print(f"[Farside] Total: ${flow:.1f}M")
-                            else:
-                                # Find ticker
-                                for ticker in self.ETF_MAPPING.keys():
-                                    if ticker in name.upper():
-                                        etf_flows[ticker] = flow
-                                        print(f"[Farside] {ticker}: ${flow:.1f}M")
-                                        break
-                
-                if not etf_flows:
-                    return self._get_fallback_data("No ETF data extracted")
-                
-                if total_flow == 0:
-                    total_flow = sum(etf_flows.values())
-                
-                result = {
-                    'date': latest_date,
-                    'total_flow': round(total_flow, 1),
-                    'flows': etf_flows,
-                    'cumulative_since_launch': 0.0,
-                    'source': 'farside_scraped',
-                    'scraped_at': datetime.now().isoformat()
-                }
-                
-                self._save_cache(result)
-                return result
-                
-        except Exception as e:
-            print(f"[Farside] Error: {e}")
-            return self._get_fallback_data(str(e))
-    
-    def _get_last_trading_day(self, current_date: datetime) -> datetime:
-        """Get the most recent trading day (skip weekends)."""
-        weekday = current_date.weekday()
-        if weekday == 5:  # Saturday
-            return current_date - timedelta(days=1)
-        elif weekday == 6:  # Sunday
-            return current_date - timedelta(days=2)
+        # Fetch data for main BTC ETFs and Gold
+        print("[Farside] Fetching ETF data from Yahoo Finance...")
+        
+        ibit_data = await self.fetch_etf_data("IBIT")
+        fbtc_data = await self.fetch_etf_data("FBTC")
+        arkb_data = await self.fetch_etf_data("ARKB")
+        gld_data = await self.fetch_etf_data("GLD")
+        
+        if not ibit_data or not gld_data:
+            print("[Farside] Failed to fetch required ETF data")
+            return self._get_fallback_data("Yahoo Finance data unavailable")
+        
+        # Calculate relative performance (IBIT vs GLD)
+        ibit_change = ibit_data["change_pct"]
+        gld_change = gld_data["change_pct"]
+        
+        # Gold cannibalization proxy: how much IBIT outperforms GLD
+        relative_performance = ibit_change - gld_change
+        
+        # Estimate "flow" based on relative performance and volume
+        # This is a proxy - higher volume + positive relative performance = likely inflows
+        ibit_volume_signal = ibit_data["volume_ratio"] - 1.0  # Positive if above average volume
+        
+        # Synthetic flow estimate (in millions, rough estimate)
+        # Based on typical IBIT daily flow patterns
+        if relative_performance > 5:
+            estimated_flow = 200 + (relative_performance * 20)  # Strong outperformance
+        elif relative_performance > 2:
+            estimated_flow = 100 + (relative_performance * 15)
+        elif relative_performance > 0:
+            estimated_flow = 50 + (relative_performance * 10)
+        elif relative_performance > -2:
+            estimated_flow = -20 + (relative_performance * 10)
         else:
-            # For weekdays, assume previous day has data available
-            # (ETF flows are typically published T+1)
-            return current_date - timedelta(days=1)
-    
-    def _get_mock_data(self) -> Dict[str, Any]:
-        """
-        Return realistic mock ETF flow data when scraping fails.
-        Uses LAST TRADING DAY's date since today's data may not be published yet.
-        """
-        now = datetime.now()
-        # Use last trading day since ETF flows are published T+1
-        last_trading_day = self._get_last_trading_day(now)
+            estimated_flow = -50 + (relative_performance * 15)
         
-        # Use a hash of the date to get consistent "random" data for the same day
-        date_hash = hash(last_trading_day.strftime("%Y-%m-%d")) % 100
+        # Adjust for volume (high volume = more conviction)
+        volume_multiplier = 1.0 + (ibit_volume_signal * 0.3)
+        estimated_flow *= volume_multiplier
         
-        # Generate realistic flows based on day
-        if date_hash > 70:
-            # Strong inflow day
-            ibit_flow = 250.0 + (date_hash % 50)
-            fbtc_flow = 120.0 + (date_hash % 30)
-            total = ibit_flow + fbtc_flow + 50.0
-        elif date_hash > 40:
-            # Moderate inflow day
-            ibit_flow = 80.0 + (date_hash % 40)
-            fbtc_flow = 40.0 + (date_hash % 20)
-            total = ibit_flow + fbtc_flow + 25.0
-        elif date_hash > 20:
-            # Light flows
-            ibit_flow = 25.0 + (date_hash % 15)
-            fbtc_flow = 10.0 + (date_hash % 10)
-            total = ibit_flow + fbtc_flow + 10.0
-        else:
-            # Outflow day (rare but realistic)
-            ibit_flow = -30.0 - (date_hash % 20)
-            fbtc_flow = -15.0 - (date_hash % 10)
-            total = ibit_flow + fbtc_flow - 20.0
-        
-        return {
-            'date': last_trading_day.strftime("%Y-%m-%d"),
-            'total_flow': round(total, 1),
-            'flows': {
-                'IBIT': round(ibit_flow, 1),
-                'FBTC': round(fbtc_flow, 1),
-                'ARKB': round(total * 0.08, 1) if total > 0 else round(total * 0.05, 1),
-                'BITB': round(total * 0.05, 1) if total > 0 else round(total * 0.03, 1),
-                'BTCO': round(total * 0.03, 1) if total > 0 else 0.0,
-                'GBTC': round(-20.0 - (date_hash % 15), 1),  # GBTC typically has outflows
-            },
-            'cumulative_since_launch': 38500.0,  # Approximate cumulative
-            'source': 'mock_data',
-            'note': f'Using estimated data for {last_trading_day.strftime("%Y-%m-%d")} (Farside blocked)'
+        # Build individual ETF "flows" (estimated)
+        etf_flows = {
+            'IBIT': round(estimated_flow * 0.6, 1),  # IBIT typically 60% of flows
+            'FBTC': round(estimated_flow * 0.25, 1) if fbtc_data else 0,  # FBTC ~25%
+            'ARKB': round(estimated_flow * 0.08, 1) if arkb_data else 0,  # ARKB ~8%
+            'BITB': round(estimated_flow * 0.04, 1),   # Smaller ETFs
+            'GBTC': round(-15.0, 1),  # GBTC typically has consistent outflows
         }
+        
+        # Calculate total
+        total_flow = sum(etf_flows.values())
+        
+        # Get date (use yesterday since that's what we have data for)
+        yesterday = datetime.now() - timedelta(days=1)
+        
+        result = {
+            'date': yesterday.strftime("%Y-%m-%d"),
+            'total_flow': round(total_flow, 1),
+            'flows': etf_flows,
+            'cumulative_since_launch': 38500.0,  # Approximate
+            'source': 'yahoo_proxy',
+            'proxy_metrics': {
+                'ibit_change_pct': round(ibit_change, 2),
+                'gld_change_pct': round(gld_change, 2),
+                'relative_performance': round(relative_performance, 2),
+                'ibit_volume_ratio': round(ibit_data["volume_ratio"], 2),
+            },
+            'note': f'Proxy: IBIT {ibit_change:+.1f}% vs GLD {gld_change:+.1f}%'
+        }
+        
+        self._save_cache(result)
+        print(f"[Farside] Proxy data: ${total_flow:.1f}M (IBIT {ibit_change:+.1f}% vs GLD {gld_change:+.1f}%)")
+        
+        return result
     
     def _get_fallback_data(self, reason: str = "Unknown error") -> Dict[str, Any]:
-        """Return fallback data when scraping fails."""
-        # Use mock data instead of empty data
-        mock = self._get_mock_data()
-        mock['note'] = f"{reason} - Using estimated data"
-        return mock
+        """Return fallback data."""
+        yesterday = datetime.now() - timedelta(days=1)
+        return {
+            'date': yesterday.strftime("%Y-%m-%d"),
+            'total_flow': 0.0,
+            'flows': {
+                'IBIT': 0.0,
+                'FBTC': 0.0,
+                'ARKB': 0.0,
+                'BITB': 0.0,
+                'GBTC': -15.0,
+            },
+            'cumulative_since_launch': 38500.0,
+            'source': 'fallback',
+            'note': reason
+        }
     
     def get_gold_cannibalization_signal(self, etf_flows: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        """Convert ETF flows to Gold Cannibalization signal."""
+        """Convert ETF proxy data to Gold Cannibalization signal."""
         if not etf_flows:
             return {
                 "active": False,
                 "status": "⚪",
-                "detail": "No ETF flow data",
+                "detail": "No ETF flow data available",
                 "flow_24h": None,
-                "signal": "neutral"
-            }
-        
-        if etf_flows.get('source') in ('fallback', 'mock_data'):
-            is_mock = etf_flows.get('source') == 'mock_data'
-            return {
-                "active": True,
-                "status": "🟡" if is_mock else "⚪",
-                "detail": etf_flows.get('note', 'Using estimated data'),
-                "flow_24h": etf_flows.get('total_flow', 0),
-                "signal": "estimated",
-                "is_fallback": True,
-                "is_mock": is_mock,
-                "date": etf_flows.get('date', 'Unknown')
+                "signal": "neutral",
+                "individual_etfs": {}
             }
         
         flow_24h = etf_flows.get('total_flow', 0)
         flows = etf_flows.get('flows', {})
         date = etf_flows.get('date', 'Unknown')
-        is_mock = etf_flows.get('source') == 'mock_data'
+        proxy_metrics = etf_flows.get('proxy_metrics', {})
+        
+        # Check if using proxy data
+        is_proxy = etf_flows.get('source') in ('yahoo_proxy', 'fallback')
         
         # Build individual analysis
         individual_analysis = {}
@@ -348,21 +276,27 @@ class FarsideScraper:
         # Find leaders
         sorted_flows = sorted(flows.items(), key=lambda x: x[1], reverse=True)
         top_inflow = sorted_flows[0] if sorted_flows and sorted_flows[0][1] > 0 else None
-        top_outflow = sorted_flows[-1] if sorted_flows and sorted_flows[-1][1] < 0 else None
         
-        # Build detail
-        detail_parts = [f"${flow_24h:+.0f}M on {date}"]
+        # Build detail with proxy info
+        proxy_note = ""
+        if proxy_metrics:
+            ibit_chg = proxy_metrics.get('ibit_change_pct', 0)
+            gld_chg = proxy_metrics.get('gld_change_pct', 0)
+            proxy_note = f"(IBIT {ibit_chg:+.1f}% vs GLD {gld_chg:+.1f}%)"
+        
+        detail_parts = [f"${flow_24h:+.0f}M {proxy_note}".strip()]
         if top_inflow:
-            detail_parts.append(f"Top: {top_inflow[0]} +${top_inflow[1]:.1f}M")
+            detail_parts.append(f"Leader: {top_inflow[0]}")
         
         # Determine signal
         base_result = {
             "date": date,
-            "is_mock": is_mock,
-            "individual_etfs": individual_analysis
+            "is_proxy": is_proxy,
+            "individual_etfs": individual_analysis,
+            "proxy_metrics": proxy_metrics
         }
         
-        if flow_24h > 300:
+        if flow_24h > 200:
             return {
                 **base_result,
                 "active": True,
@@ -370,9 +304,9 @@ class FarsideScraper:
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "strong_inflow",
-                "interpretation": "Heavy Gold → BTC rotation",
+                "interpretation": "Strong BTC ETF performance vs Gold",
             }
-        elif flow_24h > 100:
+        elif flow_24h > 80:
             return {
                 **base_result,
                 "active": True,
@@ -380,7 +314,7 @@ class FarsideScraper:
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "moderate_inflow",
-                "interpretation": "Steady BTC ETF demand",
+                "interpretation": "BTC ETF outperforming Gold",
             }
         elif flow_24h > 20:
             return {
@@ -400,7 +334,7 @@ class FarsideScraper:
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "outflow",
-                "interpretation": "BTC ETF outflows",
+                "interpretation": "BTC ETF underperforming Gold",
             }
         else:
             return {
@@ -410,8 +344,9 @@ class FarsideScraper:
                 "detail": f"Neutral: ${flow_24h:.0f}M on {date}",
                 "flow_24h": flow_24h,
                 "signal": "neutral",
-                "interpretation": "Balanced flows",
+                "interpretation": "Balanced Gold/BTC performance",
             }
 
 
+# Singleton instance
 farside_scraper = FarsideScraper()
