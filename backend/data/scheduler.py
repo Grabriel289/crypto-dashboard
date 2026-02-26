@@ -8,6 +8,7 @@ import asyncio
 from scoring.macro_tide import macro_tide_scorer
 from data.fetchers.fear_greed import fear_greed_fetcher
 from data.aggregator import data_aggregator
+from data.fetchers.liquidation import liquidation_fetcher
 from config.sectors import SECTORS
 
 
@@ -94,10 +95,10 @@ class DataScheduler:
             replace_existing=True
         )
         
-        # Full dashboard refresh - every 15 minutes for real-time feel
+        # Market Fragility (OI, Funding, Depth) - every 1 hour (to avoid rate limits)
         self.scheduler.add_job(
             self._update_fragility,
-            IntervalTrigger(minutes=15),
+            IntervalTrigger(hours=1),
             id='fragility_update',
             replace_existing=True
         )
@@ -163,13 +164,22 @@ class DataScheduler:
             print(f"Error updating sector data: {e}")
     
     async def _update_fragility(self):
-        """Update fragility metrics."""
+        """Update fragility metrics - runs hourly to avoid rate limits."""
         try:
             print(f"[{datetime.now()}] Updating fragility metrics...")
-            # This is a lightweight update that uses cached price data
-            print(f"[{datetime.now()}] Fragility metrics updated")
+            # Fetch full heatmap data from Binance (rate limited endpoint)
+            heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
+            if heatmap:
+                data_cache.set('fragility', heatmap)
+                frag_score = heatmap.get('fragility', {}).get('score', 'N/A')
+                source = heatmap.get('source', 'unknown')
+                print(f"[{datetime.now()}] Fragility updated: score={frag_score}, source={source}")
+            else:
+                print(f"[{datetime.now()}] Failed to fetch fragility data")
         except Exception as e:
-            print(f"Error updating fragility: {e}")
+            print(f"[{datetime.now()}] Error updating fragility: {e}")
+            import traceback
+            traceback.print_exc()
     
     def start(self):
         """Start the scheduler."""
@@ -188,7 +198,8 @@ class DataScheduler:
             self._update_macro(),
             self._update_fear_greed(),
             self._update_funding(),
-            self._update_crypto_prices()
+            self._update_crypto_prices(),
+            self._update_fragility()  # Fetch fragility on startup
         )
         print(">>> Initial data fetch complete")
 

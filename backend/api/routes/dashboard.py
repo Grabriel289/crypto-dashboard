@@ -77,59 +77,27 @@ async def get_crypto_pulse() -> Dict[str, Any]:
     
     funding_aggregate = aggregate_funding_signals(funding_data)
     
-    # Calculate NEW fragility score (Φ) with real market data for BTC
-    fragility_source = "unknown"
-    try:
-        # Use the rate-limited heatmap fetcher to get fragility data
-        heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
-        
-        # Debug logging
-        if heatmap:
-            fragility_source = heatmap.get("source", "no_source")
-            print(f"[Fragility] Heatmap source: {fragility_source}")
-        else:
-            print("[Fragility] Heatmap is None")
-        
-        # Extract fragility from heatmap result
-        if heatmap and heatmap.get("source") == "binance_live":
-            fragility = heatmap.get("fragility", {})
-            print(f"[Fragility] Live data score: {fragility.get('score')}")
-            fragility["source"] = "binance_live"
-            # Ensure we have all required fields
-            if not fragility.get("score"):
-                raise ValueError("Invalid fragility data from heatmap")
-        elif heatmap and heatmap.get("fragility", {}).get("score"):
-            # Use fragility from fallback data if available
-            fragility = heatmap.get("fragility", {})
-            print(f"[Fragility] Using heatmap fallback score: {fragility.get('score')}")
-            fragility["source"] = "estimated_fallback"
-            fragility["note"] = "Using estimated data (Binance rate limited)"
-        else:
-            # Fallback to legacy calculation
-            print(f"[Fragility] Using legacy fallback (source={fragility_source})")
-            fragility = calculate_fragility(
-                vol_percentile=45,
-                drawdown_pct=-15,
-                funding_rate=funding_data.get("BTC", {}).get("rate", 0),
-                exchange_flow_pct=0
-            )
-            fragility["source"] = "legacy_calculation"
-            fragility["note"] = f"Using legacy calculation (source: {fragility_source})"
-    except Exception as e:
-        print(f"[Fragility] Error: {e}")
-        import traceback
-        traceback.print_exc()
-        # Fallback to legacy calculation
+    # Get fragility from scheduler cache (updated hourly to avoid rate limits)
+    from data.scheduler import data_cache
+    cached_fragility = data_cache.get('fragility')
+    
+    if cached_fragility and cached_fragility.get('fragility', {}).get('score'):
+        # Use cached fragility data (updated hourly by scheduler)
+        fragility = cached_fragility.get('fragility', {})
+        fragility['cached_at'] = data_cache.get_timestamp('fragility').isoformat() if data_cache.get_timestamp('fragility') else None
+        fragility['note'] = 'Hourly cached data (rate limit protection)'
+        print(f"[Fragility] Using cached data: score={fragility.get('score')}, source={cached_fragility.get('source', 'unknown')}")
+    else:
+        # No cached data available - use legacy calculation
+        print("[Fragility] No cached data, using legacy calculation")
         fragility = calculate_fragility(
             vol_percentile=45,
             drawdown_pct=-15,
             funding_rate=funding_data.get("BTC", {}).get("rate", 0),
             exchange_flow_pct=0
         )
-        fragility["note"] = f"Using fallback (error: {str(e)[:50]})"
-    
-    # Add source info for debugging
-    fragility["_debug_source"] = fragility_source
+        fragility["source"] = "legacy_calculation"
+        fragility["note"] = "Waiting for hourly scheduler update"
     
     # Fetch Derivative Sentiment (real data from Binance Futures)
     derivative_sentiment = await derivative_sentiment_fetcher.get_sentiment()
@@ -333,14 +301,26 @@ async def get_key_levels() -> Dict[str, Any]:
 async def get_liquidation_heatmap(symbol: str = "BTCUSDT") -> Dict[str, Any]:
     """
     Get Liquidation Heatmap with Fragility Score.
+    Uses hourly cached data to avoid rate limits.
     
     Returns:
         - Market Fragility Score (Φ) = (L_d + F_σ + B_z) / 3
         - Estimated liquidation levels from OI + leverage
         - Realized liquidations (if WebSocket collector is running)
     """
-    # Get estimated heatmap with fragility
-    heatmap = await liquidation_fetcher.get_heatmap(symbol)
+    from data.scheduler import data_cache
+    
+    # Try to get cached fragility data first (updated hourly)
+    cached = data_cache.get('fragility')
+    
+    if cached and cached.get('source') == 'binance_live':
+        # Use hourly cached data
+        heatmap = cached
+        source = 'hourly_cached'
+    else:
+        # No fresh cache - try to fetch live (but this may hit rate limits)
+        heatmap = await liquidation_fetcher.get_heatmap(symbol)
+        source = heatmap.get('source', 'unknown')
     
     # Get realized liquidations from memory store
     from data.collectors.liquidation_ws import liquidation_store
@@ -349,12 +329,13 @@ async def get_liquidation_heatmap(symbol: str = "BTCUSDT") -> Dict[str, Any]:
     return {
         "symbol": symbol,
         "current_price": heatmap.get("current_price"),
-        "source": heatmap.get("source", "unknown"),
+        "source": source,
         "fragility": heatmap.get("fragility"),
         "estimated": heatmap.get("estimated_liquidations"),
         "realized_24h": realized,
         "major_zones": heatmap.get("major_zones"),
         "insight": heatmap.get("insight"),
+        "update_schedule": "Updated hourly (rate limit protection)",
         "data_sources": {
             "fragility": "Calculated from OI, Funding Rate, Order Book Depth, and Spot-Perp Basis",
             "estimated": "Calculated from OI + leverage distribution assumptions (~60-70% accuracy)",
