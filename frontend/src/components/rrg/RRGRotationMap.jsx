@@ -43,11 +43,27 @@ function RRGRotationMap({ data }) {
   // Combine all assets for the chart
   const allAssets = [...risk_assets, ...safe_haven_assets];
 
-  // Calculate chart scaling
-  const minX = Math.min(...allAssets.map(a => a.coordinate.rs_ratio), 95);
-  const maxX = Math.max(...allAssets.map(a => a.coordinate.rs_ratio), 105);
-  const minY = Math.min(...allAssets.map(a => a.coordinate.rs_momentum), 95);
-  const maxY = Math.max(...allAssets.map(a => a.coordinate.rs_momentum), 105);
+  // Guard against empty data
+  if (allAssets.length === 0) {
+    return (
+      <div className="dashboard-card">
+        <div className="flex items-center gap-3 mb-4">
+          <Target className="w-6 h-6 text-cyber-accent-cyan" />
+          <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
+        </div>
+        <p className="text-cyber-text-secondary">No RRG data available. Check API connection.</p>
+      </div>
+    );
+  }
+
+  // Calculate chart scaling with fallbacks
+  const rsRatios = allAssets.map(a => a.coordinate?.rs_ratio).filter(v => typeof v === 'number');
+  const rsMomentums = allAssets.map(a => a.coordinate?.rs_momentum).filter(v => typeof v === 'number');
+  
+  const minX = rsRatios.length > 0 ? Math.min(...rsRatios, 95) : 95;
+  const maxX = rsRatios.length > 0 ? Math.max(...rsRatios, 105) : 105;
+  const minY = rsMomentums.length > 0 ? Math.min(...rsMomentums, 95) : 95;
+  const maxY = rsMomentums.length > 0 ? Math.max(...rsMomentums, 105) : 105;
   
   const rangeX = maxX - minX || 20;
   const rangeY = maxY - minY || 20;
