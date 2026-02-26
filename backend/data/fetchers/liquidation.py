@@ -8,7 +8,7 @@ from data.utils.rate_limiter import binance_rate_limiter
 
 
 class LiquidationFetcher:
-    """Fetch liquidation heatmap data from Binance Futures with rate limiting."""
+    """Fetch liquidation heatmap data from Binance Futures with rate limiting and caching."""
     
     BINANCE_FUTURES = "https://fapi.binance.com"
     BINANCE_SPOT = "https://api.binance.com"
@@ -16,6 +16,22 @@ class LiquidationFetcher:
     def __init__(self):
         self.session: Optional[aiohttp.ClientSession] = None
         self._session_lock = asyncio.Lock()
+        # Cache for fragility data (5 minute TTL to reduce API calls)
+        self._cache = {}
+        self._cache_ttl = 300  # 5 minutes
+    
+    def _get_cached(self, key: str) -> Optional[Dict[str, Any]]:
+        """Get cached data if not expired."""
+        if key in self._cache:
+            cached_time, data = self._cache[key]
+            if (datetime.utcnow() - cached_time).seconds < self._cache_ttl:
+                print(f"[Heatmap] Using cached data ({(datetime.utcnow() - cached_time).seconds}s old)")
+                return data
+        return None
+    
+    def _set_cached(self, key: str, data: Dict[str, Any]):
+        """Cache data with timestamp."""
+        self._cache[key] = (datetime.utcnow(), data)
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""
@@ -205,9 +221,16 @@ class LiquidationFetcher:
     async def get_heatmap(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
         """
         Get complete liquidation heatmap with fragility score.
+        Uses caching to reduce API calls (5 minute TTL).
         """
         from analysis.liquidation_heatmap import calculate_complete_heatmap
         from scoring.fragility import calculate_depth_2pct
+        
+        # Check cache first
+        cache_key = f"heatmap_{symbol}"
+        cached = self._get_cached(cache_key)
+        if cached:
+            return cached
         
         print(f"[Heatmap] Starting fetch for {symbol}...")
         
@@ -268,13 +291,19 @@ class LiquidationFetcher:
             result["source"] = "binance_live"
             print(f"[Heatmap] Success! Fragility score: {result.get('fragility', {}).get('score')}")
             
+            # Cache the result
+            self._set_cached(cache_key, result)
             return result
             
         except Exception as e:
             print(f"[Heatmap] Error: {e}")
             import traceback
             traceback.print_exc()
-            return self._get_fallback_data(symbol)
+            fallback = self._get_fallback_data(symbol)
+            # Cache fallback for shorter time (1 minute) to retry sooner
+            fallback["_cache_ttl"] = 60
+            self._set_cached(cache_key, fallback)
+            return fallback
     
     def _get_fallback_data(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
         """Get estimated data when live data fails."""
