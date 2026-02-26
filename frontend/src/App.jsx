@@ -12,6 +12,7 @@ import KeyLevelsCDC from './components/indicators/KeyLevelsCDC'
 import StablecoinFlow from './components/indicators/StablecoinFlow'
 import EconomicCalendar from './components/indicators/EconomicCalendar'
 import CorrelationMatrix from './components/indicators/CorrelationMatrix'
+import { RRGRotationMap } from './components/rrg'
 import Footer from './components/layout/Footer'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -113,7 +114,12 @@ function App() {
             <EconomicCalendar data={data?.calendar} />
           </section>
           
-          {/* Section: Correlation Matrix & PAXG/BTC */}
+          {/* Section: RRG Rotation Map */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.22s' }}>
+            <RRGRotationMap data={data?.rrg_rotation} />
+          </section>
+          
+          {/* Section: Correlation Matrix & PAXG/BTC -->
           <section className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
             <CorrelationMatrix data={data?.correlation} />
           </section>

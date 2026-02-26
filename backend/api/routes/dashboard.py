@@ -13,6 +13,7 @@ from scoring.sector_rotation import calculate_sector_momentum, generate_sector_v
 from analysis.action_generator import generate_action_items
 from analysis.conflict_detector import detect_conflicting_signals
 from analysis.final_verdict import generate_final_verdict
+from analysis.rrg import RRGEngine, RRGDataFetcher
 from data.fetchers.fear_greed import fear_greed_fetcher
 from data.fetchers.binance import binance_fetcher
 from data.fetchers.cdc_levels import cdc_fetcher
@@ -373,7 +374,7 @@ async def get_correlation_matrix() -> Dict[str, Any]:
 async def get_full_dashboard() -> Dict[str, Any]:
     """Get complete dashboard data including new indicators."""
     # Fetch all data concurrently
-    macro, prices, pulse, sectors, key_levels, liquidation, stablecoin, calendar, correlation = await asyncio.gather(
+    macro, prices, pulse, sectors, key_levels, liquidation, stablecoin, calendar, correlation, rrg_rotation = await asyncio.gather(
         macro_tide_scorer.calculate_full_score(),
         get_market_prices(),
         get_crypto_pulse(),
@@ -382,7 +383,8 @@ async def get_full_dashboard() -> Dict[str, Any]:
         get_liquidation_heatmap(),
         get_stablecoin_flow(),
         get_economic_calendar(),
-        get_correlation_matrix()
+        get_correlation_matrix(),
+        get_rrg_rotation()
     )
     
     # Generate actions
@@ -430,6 +432,109 @@ async def get_full_dashboard() -> Dict[str, Any]:
         "stablecoin": stablecoin,
         "calendar": calendar,
         "correlation": correlation,
+        "rrg_rotation": rrg_rotation,
         "final_verdict": final_verdict,
         "last_updated": datetime.now().isoformat()
     }
+
+
+@router.get("/rrg-rotation")
+async def get_rrg_rotation() -> Dict[str, Any]:
+    """
+    Get RRG (Relative Rotation Graph) Rotation Map data.
+    
+    Returns:
+        - ETF positions with RS-Ratio and RS-Momentum coordinates
+        - Market regime (Risk-On/Risk-Off/Neutral)
+        - Top investment picks
+        - Action groups (Buy/Watch/Reduce/Avoid)
+        - Key insights
+    """
+    try:
+        # Initialize components
+        fetcher = RRGDataFetcher()
+        engine = RRGEngine()
+        
+        # Fetch price data
+        price_data = await fetcher.fetch_all_symbols()
+        
+        if not price_data or "SPY" not in price_data:
+            return {
+                "error": "Unable to fetch price data",
+                "timestamp": datetime.now().isoformat()
+            }
+        
+        # Calculate RRG for all ETFs
+        results = engine.calculate_all(price_data)
+        
+        # Detect market regime
+        regime = engine.detect_regime(results)
+        
+        # Generate recommendations
+        top_picks = engine.get_top_picks(results)
+        action_groups = engine.get_action_groups(results)
+        insights = engine.generate_insights(results, regime)
+        
+        # Separate by category
+        risk_assets = [
+            {
+                "symbol": r.symbol,
+                "name": r.name,
+                "category": r.category,
+                "color": r.color,
+                "coordinate": {
+                    "rs_ratio": r.rs_ratio,
+                    "rs_momentum": r.rs_momentum,
+                    "quadrant": r.quadrant
+                },
+                "current_price": r.current_price,
+                "period_return": r.period_return
+            }
+            for r in results if r.category == "risk"
+        ]
+        
+        safe_haven_assets = [
+            {
+                "symbol": r.symbol,
+                "name": r.name,
+                "category": r.category,
+                "color": r.color,
+                "coordinate": {
+                    "rs_ratio": r.rs_ratio,
+                    "rs_momentum": r.rs_momentum,
+                    "quadrant": r.quadrant
+                },
+                "current_price": r.current_price,
+                "period_return": r.period_return
+            }
+            for r in results if r.category == "safe_haven"
+        ]
+        
+        await fetcher.close()
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "benchmark": "SPY",
+            "risk_assets": risk_assets,
+            "safe_haven_assets": safe_haven_assets,
+            "regime": {
+                "regime": regime.regime,
+                "score": regime.score,
+                "emoji": regime.emoji,
+                "color": regime.color,
+                "risk_summary": regime.risk_summary,
+                "safe_summary": regime.safe_summary
+            },
+            "top_picks": top_picks,
+            "action_groups": action_groups,
+            "insights": insights,
+            "calculation_period": 10,
+            "data_freshness": "Live"
+        }
+        
+    except Exception as e:
+        print(f"Error in RRG rotation endpoint: {e}")
+        return {
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
