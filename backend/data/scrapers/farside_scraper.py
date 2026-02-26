@@ -312,19 +312,23 @@ class FarsideScraper:
                 "signal": "neutral"
             }
         
-        if etf_flows.get('source') == 'fallback':
+        if etf_flows.get('source') in ('fallback', 'mock_data'):
+            is_mock = etf_flows.get('source') == 'mock_data'
             return {
-                "active": False,
-                "status": "⚪",
-                "detail": f"Farside: {etf_flows.get('note', 'Unavailable')}",
-                "flow_24h": None,
-                "signal": "neutral",
-                "is_fallback": True
+                "active": True,
+                "status": "🟡" if is_mock else "⚪",
+                "detail": etf_flows.get('note', 'Using estimated data'),
+                "flow_24h": etf_flows.get('total_flow', 0),
+                "signal": "estimated",
+                "is_fallback": True,
+                "is_mock": is_mock,
+                "date": etf_flows.get('date', 'Unknown')
             }
         
         flow_24h = etf_flows.get('total_flow', 0)
         flows = etf_flows.get('flows', {})
         date = etf_flows.get('date', 'Unknown')
+        is_mock = etf_flows.get('source') == 'mock_data'
         
         # Build individual analysis
         individual_analysis = {}
@@ -352,55 +356,61 @@ class FarsideScraper:
             detail_parts.append(f"Top: {top_inflow[0]} +${top_inflow[1]:.1f}M")
         
         # Determine signal
+        base_result = {
+            "date": date,
+            "is_mock": is_mock,
+            "individual_etfs": individual_analysis
+        }
+        
         if flow_24h > 300:
             return {
+                **base_result,
                 "active": True,
                 "status": "🟢",
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "strong_inflow",
                 "interpretation": "Heavy Gold → BTC rotation",
-                "individual_etfs": individual_analysis
             }
         elif flow_24h > 100:
             return {
+                **base_result,
                 "active": True,
                 "status": "🟢",
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "moderate_inflow",
                 "interpretation": "Steady BTC ETF demand",
-                "individual_etfs": individual_analysis
             }
         elif flow_24h > 20:
             return {
+                **base_result,
                 "active": True,
                 "status": "🟡",
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "light_inflow",
                 "interpretation": "Modest BTC ETF interest",
-                "individual_etfs": individual_analysis
             }
         elif flow_24h < -50:
             return {
+                **base_result,
                 "active": True,
                 "status": "🔴",
                 "detail": " | ".join(detail_parts),
                 "flow_24h": flow_24h,
                 "signal": "outflow",
                 "interpretation": "BTC ETF outflows",
-                "individual_etfs": individual_analysis
             }
         else:
             return {
+                **base_result,
                 "active": False,
                 "status": "⚪",
                 "detail": f"Neutral: ${flow_24h:.0f}M on {date}",
                 "flow_24h": flow_24h,
                 "signal": "neutral",
                 "interpretation": "Balanced flows",
-                "individual_etfs": individual_analysis
             }
 
 
