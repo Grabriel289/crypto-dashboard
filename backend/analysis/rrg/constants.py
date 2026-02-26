@@ -20,9 +20,10 @@ ETF_SYMBOLS = {
     "UUP": {"name": "US Dollar", "category": "safe_haven", "color": "#a3e635"},
 }
 
-# RRG Calculation Parameters
-RS_RATIO_PERIOD: Final[int] = 10      # SMA period for RS-Ratio
-RS_MOMENTUM_PERIOD: Final[int] = 6    # SMA period for RS-Momentum
+# RRG Calculation Parameters (Weekly Data)
+# Using weekly data to reduce market noise vs daily
+RS_RATIO_PERIOD: Final[int] = 10      # 10-week SMA for RS-Ratio (Jurrs default)
+RS_MOMENTUM_PERIOD: Final[int] = 6    # 6-week SMA for RS-Momentum (Jurrs default)
 CENTER_VALUE: Final[float] = 100.0    # Normalization center
 
 # Regime Detection
@@ -38,4 +39,4 @@ RISK_OFF_THRESHOLD: Final[float] = -3.0
 
 # Yahoo Finance API Settings
 YAHOO_BASE_URL: Final[str] = "https://query1.finance.yahoo.com/v8/finance/chart"
-HISTORY_DAYS: Final[int] = 60
+HISTORY_DAYS: Final[int] = 180        # ~6 months for weekly data (need 16+ weeks)

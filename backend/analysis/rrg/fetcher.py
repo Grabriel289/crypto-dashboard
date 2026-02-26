@@ -28,14 +28,14 @@ class RRGDataFetcher:
     
     async def fetch_prices(self, symbol: str, days: int = HISTORY_DAYS) -> Optional[List[float]]:
         """
-        Fetch historical closing prices for a symbol.
+        Fetch historical weekly closing prices for a symbol.
         
         Args:
             symbol: ETF ticker symbol
             days: Number of days of history
             
         Returns:
-            List of closing prices (oldest first)
+            List of weekly closing prices (oldest first)
         """
         cache_key = f"{symbol}_{days}"
         
@@ -60,7 +60,7 @@ class RRGDataFetcher:
             params = {
                 "period1": period1,
                 "period2": period2,
-                "interval": "1d",
+                "interval": "1wk",  # Weekly data for RRG (less noise)
                 "events": "history"
             }
             

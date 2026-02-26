@@ -37,13 +37,15 @@ class RegimeResult:
 
 class RRGEngine:
     """
-    RRG Calculation Engine.
+    RRG Calculation Engine (Weekly Data).
     
     Calculates RS-Ratio (X-axis) and RS-Momentum (Y-axis) for ETFs.
+    Uses weekly data to filter out daily market noise.
+    
     Formula:
-    1. Raw RS = ETF_Price / Benchmark_Price
-    2. RS-Ratio = (Raw_RS / SMA(Raw_RS, 10)) × 100
-    3. RS-Momentum = (RS_Ratio / SMA(RS_Ratio, 6)) × 100
+    1. Raw RS = ETF_Price / Benchmark_Price (weekly closes)
+    2. RS-Ratio = (Raw_RS / SMA(Raw_RS, 10_weeks)) × 100
+    3. RS-Momentum = (RS_Ratio / SMA(RS_Ratio, 6_weeks)) × 100
     """
     
     def __init__(self):
