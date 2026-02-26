@@ -1,5 +1,5 @@
 import React from 'react'
-import { Waves, TrendingUp, TrendingDown, Droplets, AlertTriangle } from 'lucide-react'
+import { Waves, TrendingUp, TrendingDown, Droplets, AlertTriangle, ArrowRightLeft } from 'lucide-react'
 
 function MacroTide({ data }) {
   if (!data) return null
@@ -36,6 +36,11 @@ function MacroTide({ data }) {
     { key: 'CuAu_Ratio', label: 'Cu/Au', description: 'Growth Signal' },
     { key: 'Net_Liquidity', label: 'Net Liq', description: 'Fed Liquidity' }
   ]
+
+  // Extract Gold Cannibalization data
+  const goldCannibalization = leak_details?.gold_cannibalization
+  const hasIndividualETFs = goldCannibalization?.individual_etfs && 
+    Object.keys(goldCannibalization.individual_etfs).length > 0
 
   return (
     <div className="dashboard-card glow-green">
@@ -94,29 +99,76 @@ function MacroTide({ data }) {
         </div>
 
         <div className="grid grid-cols-3 gap-4">
-          {leak_details && Object.entries(leak_details).map(([key, leak]) => (
-            <div 
-              key={key}
-              className={`p-4 rounded-lg border ${
-                leak.active 
-                  ? 'border-cyber-accent-red bg-cyber-accent-red/5' 
-                  : 'border-cyber-border-subtle bg-cyber-bg-secondary'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-cyber-text-secondary capitalize">
-                  {key.replace('_', ' ')}
-                </span>
-                <span className="text-sm font-semibold">{leak.status}</span>
-              </div>
-              <div className="text-xs text-cyber-text-muted">{leak.detail}</div>
-              {leak.penalty !== 0 && (
-                <div className="mt-2 text-xs text-cyber-accent-red">
-                  Penalty: {leak.penalty}
+          {leak_details && Object.entries(leak_details).map(([key, leak]) => {
+            const isGoldCannibalization = key === 'gold_cannibalization'
+            
+            return (
+              <div 
+                key={key}
+                className={`p-4 rounded-lg border ${
+                  leak.active 
+                    ? 'border-cyber-accent-red bg-cyber-accent-red/5' 
+                    : 'border-cyber-border-subtle bg-cyber-bg-secondary'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm text-cyber-text-secondary capitalize">
+                    {key.replace('_', ' ')}
+                  </span>
+                  <span className="text-sm font-semibold">{leak.status}</span>
                 </div>
-              )}
-            </div>
-          ))}
+                
+                {/* Gold Cannibalization Enhanced Display */}
+                {isGoldCannibalization && hasIndividualETFs ? (
+                  <div>
+                    <div className="text-xs text-cyber-text-muted mb-2">
+                      {leak.interpretation}
+                    </div>
+                    <div className="text-xs font-mono text-cyber-accent-cyan mb-2">
+                      24h Flow: ${leak.flow_24h > 0 ? '+' : ''}{leak.flow_24h?.toFixed(1)}M
+                    </div>
+                    
+                    {/* Individual ETF Breakdown */}
+                    <div className="mt-2 pt-2 border-t border-cyber-border-subtle">
+                      <div className="text-xs text-cyber-text-muted mb-1">Top ETF Flows:</div>
+                      <div className="space-y-1 max-h-24 overflow-y-auto">
+                        {Object.entries(leak.individual_etfs)
+                          .sort((a, b) => b[1].flow - a[1].flow)
+                          .slice(0, 5)
+                          .map(([ticker, etfData]) => (
+                            <div key={ticker} className="flex justify-between text-xs">
+                              <span className={ticker === 'GBTC' ? 'text-cyber-text-muted' : 'text-white'}>
+                                {ticker}
+                                {ticker === 'GBTC' && <span className="text-[10px] ml-1">(legacy)</span>}
+                              </span>
+                              <span className={etfData.flow >= 0 ? 'text-cyber-accent-green' : 'text-cyber-accent-red'}>
+                                {etfData.flow > 0 ? '+' : ''}{etfData.flow.toFixed(1)}M
+                              </span>
+                            </div>
+                          ))
+                        }
+                      </div>
+                    </div>
+                    
+                    {/* Cumulative since launch */}
+                    {leak.cumulative > 0 && (
+                      <div className="mt-2 pt-2 border-t border-cyber-border-subtle text-xs text-cyber-text-muted">
+                        Cumulative: ${(leak.cumulative / 1000).toFixed(1)}B since launch
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-cyber-text-muted">{leak.detail}</div>
+                )}
+                
+                {leak.penalty !== 0 && (
+                  <div className="mt-2 text-xs text-cyber-accent-red">
+                    Penalty: {leak.penalty}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </div>
 
