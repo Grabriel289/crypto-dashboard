@@ -2,15 +2,30 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Minus, Target, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
 
 function RRGRotationMap({ data }) {
-  if (!data || data.error) {
+  // Debug logging
+  console.log('RRGRotationMap data:', data);
+  
+  if (!data) {
     return (
       <div className="dashboard-card">
         <div className="flex items-center gap-3 mb-4">
           <Target className="w-6 h-6 text-cyber-accent-cyan" />
           <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
         </div>
-        <p className="text-cyber-text-secondary">
-          {data?.error || "RRG data unavailable. Will retry shortly."}
+        <p className="text-cyber-text-secondary">Loading RRG data...</p>
+      </div>
+    );
+  }
+  
+  if (data.error) {
+    return (
+      <div className="dashboard-card">
+        <div className="flex items-center gap-3 mb-4">
+          <Target className="w-6 h-6 text-cyber-accent-cyan" />
+          <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
+        </div>
+        <p className="text-cyber-text-secondary text-red-400">
+          Error: {data.error}
         </p>
       </div>
     );

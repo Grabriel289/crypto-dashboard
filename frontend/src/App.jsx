@@ -119,7 +119,7 @@ function App() {
             <RRGRotationMap data={data?.rrg_rotation} />
           </section>
           
-          {/* Section: Correlation Matrix & PAXG/BTC -->
+          {/* Section: Correlation Matrix & PAXG/BTC */}
           <section className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
             <CorrelationMatrix data={data?.correlation} />
           </section>
