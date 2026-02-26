@@ -1,32 +1,94 @@
 import React from 'react';
-import { TrendingUp, TrendingDown, Minus, Target, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import { Target, TrendingUp, TrendingDown, AlertCircle, CheckCircle, XCircle, Minus } from 'lucide-react';
+
+// Exact colors from specification
+const COLORS = {
+  background: '#0d1117',
+  cardBg: '#161b22',
+  border: '#30363d',
+  
+  quadrant: {
+    leading: 'rgba(63, 185, 80, 0.08)',
+    weakening: 'rgba(210, 153, 34, 0.08)',
+    lagging: 'rgba(248, 81, 73, 0.08)',
+    improving: 'rgba(88, 166, 255, 0.08)',
+  },
+  
+  quadrantLabel: {
+    leading: '#3fb950',
+    weakening: '#d29922',
+    lagging: '#f85149',
+    improving: '#58a6ff',
+  },
+  
+  regime: {
+    risk_on: '#3fb950',
+    risk_off: '#f85149',
+    neutral: '#d29922',
+  },
+  
+  textPrimary: '#f0f6fc',
+  textSecondary: '#8b949e',
+  textMuted: '#6e7681',
+  
+  safeHavenBorder: '#ffd700',
+  safeHavenGlow: 'rgba(255, 215, 0, 0.4)',
+};
+
+const ETF_COLORS = {
+  IBIT: '#f7931a',
+  ETHA: '#627eea',
+  BOTZ: '#8b5cf6',
+  QQQ: '#00d4aa',
+  IWM: '#f85149',
+  GLD: '#ffd700',
+  TLT: '#4ade80',
+  SHY: '#22d3ee',
+  UUP: '#a3e635',
+};
+
+const QUADRANT_EMOJIS = {
+  leading: '🚀',
+  weakening: '⚠️',
+  lagging: '📉',
+  improving: '📈',
+};
 
 function RRGRotationMap({ data }) {
-  // Debug logging
-  console.log('RRGRotationMap data:', data);
-  
   if (!data) {
     return (
-      <div className="dashboard-card">
-        <div className="flex items-center gap-3 mb-4">
-          <Target className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
+      <div style={{ 
+        background: COLORS.cardBg, 
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: '12px',
+        padding: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <Target size={24} color="#22d3ee" />
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: COLORS.textPrimary, margin: 0 }}>
+            🔄 RRG Rotation Map — Fund Flow Analysis
+          </h2>
         </div>
-        <p className="text-cyber-text-secondary">Loading RRG data...</p>
+        <p style={{ color: COLORS.textSecondary }}>Loading RRG data...</p>
       </div>
     );
   }
-  
+
   if (data.error) {
     return (
-      <div className="dashboard-card">
-        <div className="flex items-center gap-3 mb-4">
-          <Target className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
+      <div style={{ 
+        background: COLORS.cardBg, 
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: '12px',
+        padding: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <Target size={24} color="#22d3ee" />
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: COLORS.textPrimary, margin: 0 }}>
+            🔄 RRG Rotation Map
+          </h2>
         </div>
-        <p className="text-cyber-text-secondary text-red-400">
-          Error: {data.error}
-        </p>
+        <p style={{ color: '#f85149' }}>Error: {data.error}</p>
       </div>
     );
   }
@@ -40,331 +102,935 @@ function RRGRotationMap({ data }) {
     insights = []
   } = data;
 
-  // Combine all assets for the chart
+  // Combine all assets
   const allAssets = [...risk_assets, ...safe_haven_assets];
-
-  // Guard against empty data
+  
   if (allAssets.length === 0) {
     return (
-      <div className="dashboard-card">
-        <div className="flex items-center gap-3 mb-4">
-          <Target className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
+      <div style={{ 
+        background: COLORS.cardBg, 
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: '12px',
+        padding: '20px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <Target size={24} color="#22d3ee" />
+          <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: COLORS.textPrimary, margin: 0 }}>
+            🔄 RRG Rotation Map
+          </h2>
         </div>
-        <p className="text-cyber-text-secondary">No RRG data available. Check API connection.</p>
+        <p style={{ color: COLORS.textSecondary }}>No RRG data available</p>
       </div>
     );
   }
 
-  // Calculate chart scaling with fallbacks
+  // Calculate chart scaling
   const rsRatios = allAssets.map(a => a.coordinate?.rs_ratio).filter(v => typeof v === 'number');
   const rsMomentums = allAssets.map(a => a.coordinate?.rs_momentum).filter(v => typeof v === 'number');
   
-  const minX = rsRatios.length > 0 ? Math.min(...rsRatios, 95) : 95;
-  const maxX = rsRatios.length > 0 ? Math.max(...rsRatios, 105) : 105;
-  const minY = rsMomentums.length > 0 ? Math.min(...rsMomentums, 95) : 95;
-  const maxY = rsMomentums.length > 0 ? Math.max(...rsMomentums, 105) : 105;
+  const minX = Math.min(...rsRatios, 95);
+  const maxX = Math.max(...rsRatios, 105);
+  const minY = Math.min(...rsMomentums, 95);
+  const maxY = Math.max(...rsMomentums, 105);
   
   const rangeX = maxX - minX || 20;
   const rangeY = maxY - minY || 20;
 
   const scaleX = (val) => ((val - minX) / rangeX) * 100;
-  const scaleY = (val) => 100 - ((val - minY) / rangeY) * 100; // Invert Y for chart
+  const scaleY = (val) => 100 - ((val - minY) / rangeY) * 100;
 
-  // Quadrant colors
-  const quadrantColors = {
-    leading: 'bg-green-500/10 border-green-500/30',
-    weakening: 'bg-yellow-500/10 border-yellow-500/30',
-    lagging: 'bg-red-500/10 border-red-500/30',
-    improving: 'bg-blue-500/10 border-blue-500/30'
-  };
-
-  const quadrantLabels = {
-    leading: { text: 'LEADING', color: 'text-green-400', emoji: '🚀' },
-    weakening: { text: 'WEAKENING', color: 'text-yellow-400', emoji: '⚠️' },
-    lagging: { text: 'LAGGING', color: 'text-red-400', emoji: '📉' },
-    improving: { text: 'IMPROVING', color: 'text-blue-400', emoji: '📈' }
-  };
-
-  const getActionIcon = (action) => {
-    switch (action) {
-      case 'buy': return <TrendingUp className="w-4 h-4 text-green-400" />;
-      case 'reduce': return <TrendingDown className="w-4 h-4 text-yellow-400" />;
-      case 'avoid': return <XCircle className="w-4 h-4 text-red-400" />;
-      default: return <Minus className="w-4 h-4 text-gray-400" />;
-    }
-  };
+  // Get regime color
+  const regimeColor = COLORS.regime[regime.regime] || COLORS.regime.neutral;
+  
+  // Separate action groups
+  const buyGroup = action_groups.find(g => g.action === 'buy');
+  const watchGroup = action_groups.find(g => g.action === 'watch');
+  const reduceGroup = action_groups.find(g => g.action === 'reduce');
+  const avoidGroup = action_groups.find(g => g.action === 'avoid');
 
   return (
-    <div className="dashboard-card">
+    <div style={{ 
+      background: COLORS.cardBg, 
+      border: `1px solid ${COLORS.border}`,
+      borderRadius: '12px',
+      padding: '20px'
+    }}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Target className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">🔄 RRG Rotation Map</h2>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: '20px'
+      }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Target size={24} color="#22d3ee" />
+            <h2 style={{ 
+              fontSize: '18px', 
+              fontWeight: 'bold', 
+              color: COLORS.textPrimary, 
+              margin: 0 
+            }}>
+              🔄 RRG Rotation Map — Fund Flow Analysis
+            </h2>
+          </div>
+          <p style={{ 
+            fontSize: '12px', 
+            color: COLORS.textMuted, 
+            margin: '4px 0 0 36px' 
+          }}>
+            Relative Rotation Graph: Risk Assets vs Safe Haven (Benchmark: SPY)
+          </p>
         </div>
+        
+        {/* Regime Badge */}
         {regime.regime && (
-          <div 
-            className="px-4 py-2 rounded-lg border flex items-center gap-2"
-            style={{ 
-              backgroundColor: `${regime.color}20`,
-              borderColor: regime.color 
-            }}
-          >
-            <span className="text-xl">{regime.emoji}</span>
-            <span 
-              className="font-bold"
-              style={{ color: regime.color }}
-            >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            backgroundColor: `${regimeColor}20`,
+            border: `1px solid ${regimeColor}40`,
+            borderRadius: '8px'
+          }}>
+            <span style={{ fontSize: '20px' }}>{regime.emoji}</span>
+            <span style={{ 
+              fontWeight: 'bold', 
+              color: regimeColor,
+              fontSize: '14px'
+            }}>
               {regime.regime.replace('_', '-').toUpperCase()}
-            </span>
-            <span className="text-cyber-text-muted text-sm ml-2">
-              (Score: {regime.score})
             </span>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* RRG Chart */}
-        <div className="relative">
-          {/* Chart Container */}
-          <div className="relative h-80 bg-cyber-bg-secondary rounded-lg border border-cyber-border-subtle overflow-hidden">
+      {/* Main Content - 2 Columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 0.7fr', gap: '20px' }}>
+        {/* Left Column - RRG Chart */}
+        <div>
+          <div style={{
+            background: COLORS.background,
+            border: `2px solid ${COLORS.border}`,
+            borderRadius: '8px',
+            padding: '20px',
+            position: 'relative',
+            height: '400px'
+          }}>
             {/* Quadrant Backgrounds */}
-            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2">
-              <div className="bg-green-500/5 border-r border-b border-cyber-border-subtle" />
-              <div className="bg-yellow-500/5 border-b border-cyber-border-subtle" />
-              <div className="bg-blue-500/5 border-r border-cyber-border-subtle" />
-              <div className="bg-red-500/5" />
+            <div style={{
+              position: 'absolute',
+              inset: '20px',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gridTemplateRows: '1fr 1fr',
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}>
+              {/* Improving (Top-Left) - Blue */}
+              <div style={{ background: COLORS.quadrant.improving, position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: COLORS.quadrantLabel.improving,
+                  background: 'rgba(88,166,255,0.2)',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  📈 Improving
+                </span>
+              </div>
+              
+              {/* Leading (Top-Right) - Green */}
+              <div style={{ background: COLORS.quadrant.leading, position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: COLORS.quadrantLabel.leading,
+                  background: 'rgba(63,185,80,0.2)',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  🚀 Leading
+                </span>
+              </div>
+              
+              {/* Lagging (Bottom-Left) - Red */}
+              <div style={{ background: COLORS.quadrant.lagging, position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  left: '10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: COLORS.quadrantLabel.lagging,
+                  background: 'rgba(248,81,73,0.2)',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  📉 Lagging
+                </span>
+              </div>
+              
+              {/* Weakening (Bottom-Right) - Yellow */}
+              <div style={{ background: COLORS.quadrant.weakening, position: 'relative' }}>
+                <span style={{
+                  position: 'absolute',
+                  bottom: '10px',
+                  right: '10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: COLORS.quadrantLabel.weakening,
+                  background: 'rgba(210,153,34,0.2)',
+                  padding: '4px 8px',
+                  borderRadius: '4px'
+                }}>
+                  ⚠️ Weakening
+                </span>
+              </div>
             </div>
 
             {/* Center Lines */}
-            <div className="absolute left-1/2 top-0 bottom-1 w-px bg-cyber-border-accent" />
-            <div className="absolute top-1/2 left-0 right-1 h-px bg-cyber-border-accent" />
-
-            {/* Center Label */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 
-                          bg-cyber-bg-primary px-2 py-1 rounded text-xs text-cyber-text-muted">
-              100
-            </div>
-
-            {/* Quadrant Labels */}
-            <div className="absolute top-2 right-2 text-xs font-bold text-green-400">LEADING</div>
-            <div className="absolute top-2 left-2 text-xs font-bold text-blue-400">IMPROVING</div>
-            <div className="absolute bottom-2 right-2 text-xs font-bold text-yellow-400">WEAKENING</div>
-            <div className="absolute bottom-2 left-2 text-xs font-bold text-red-400">LAGGING</div>
+            <div style={{
+              position: 'absolute',
+              left: '50%',
+              top: '20px',
+              bottom: '20px',
+              width: '1px',
+              background: COLORS.border,
+              borderLeft: `1px dashed ${COLORS.border}`
+            }} />
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '20px',
+              right: '20px',
+              height: '1px',
+              background: COLORS.border,
+              borderTop: `1px dashed ${COLORS.border}`
+            }} />
 
             {/* Axis Labels */}
-            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-xs text-cyber-text-muted">
-              RS-Ratio →
-            </div>
-            <div className="absolute left-1 top-1/2 -translate-y-1/2 -rotate-90 text-xs text-cyber-text-muted">
-              RS-Momentum →
-            </div>
+            <span style={{
+              position: 'absolute',
+              left: '50%',
+              bottom: '4px',
+              transform: 'translateX(-50%)',
+              fontSize: '10px',
+              color: COLORS.textMuted
+            }}>
+              ▼ Falling Momentum
+            </span>
+            <span style={{
+              position: 'absolute',
+              left: '50%',
+              top: '4px',
+              transform: 'translateX(-50%)',
+              fontSize: '10px',
+              color: COLORS.textMuted
+            }}>
+              ▲ Rising Momentum
+            </span>
+            <span style={{
+              position: 'absolute',
+              left: '4px',
+              top: '50%',
+              transform: 'translateY(-50%) rotate(-90deg)',
+              fontSize: '10px',
+              color: COLORS.textMuted,
+              transformOrigin: 'left center'
+            }}>
+              ◀ Weak RS
+            </span>
+            <span style={{
+              position: 'absolute',
+              right: '4px',
+              top: '50%',
+              transform: 'translateY(-50%) rotate(90deg)',
+              fontSize: '10px',
+              color: COLORS.textMuted,
+              transformOrigin: 'right center'
+            }}>
+              Strong RS ▶
+            </span>
 
             {/* ETF Dots */}
             {allAssets.map((asset) => {
               const x = scaleX(asset.coordinate.rs_ratio);
               const y = scaleY(asset.coordinate.rs_momentum);
               const isSafeHaven = asset.category === 'safe_haven';
+              const color = ETF_COLORS[asset.symbol] || '#6b7280';
               
               return (
                 <div
                   key={asset.symbol}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2 group cursor-pointer"
-                  style={{ left: `${x}%`, top: `${y}%` }}
+                  style={{
+                    position: 'absolute',
+                    left: `calc(20px + (100% - 40px) * ${x / 100})`,
+                    top: `calc(20px + (100% - 40px) * ${y / 100})`,
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 10
+                  }}
                 >
                   {/* Dot */}
                   <div
-                    className={`w-4 h-4 rounded-full border-2 transition-all duration-200 
-                              group-hover:scale-125 ${isSafeHaven ? 'border-dashed' : 'border-solid'}`}
-                    style={{ 
-                      backgroundColor: asset.color,
-                      borderColor: isSafeHaven ? '#ffd700' : asset.color
+                    style={{
+                      width: '14px',
+                      height: '14px',
+                      borderRadius: '50%',
+                      backgroundColor: color,
+                      border: isSafeHaven 
+                        ? `2px solid ${COLORS.safeHavenBorder}` 
+                        : '2px solid #ffffff',
+                      boxShadow: isSafeHaven 
+                        ? `0 0 8px ${COLORS.safeHavenGlow}` 
+                        : '0 2px 8px rgba(0,0,0,0.5)',
+                      cursor: 'pointer',
+                      transition: 'transform 0.3s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'scale(1.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'scale(1)';
                     }}
                   />
                   {/* Label */}
-                  <div className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap
-                                text-xs font-bold text-white opacity-0 group-hover:opacity-100
-                                transition-opacity bg-cyber-bg-primary px-2 py-1 rounded">
+                  <div style={{
+                    position: 'absolute',
+                    top: '18px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    color: COLORS.textPrimary,
+                    background: 'rgba(22,27,34,0.95)',
+                    padding: '2px 5px',
+                    borderRadius: '3px',
+                    whiteSpace: 'nowrap'
+                  }}>
                     {asset.symbol}
-                  </div>
-                  
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                                bg-cyber-bg-card border border-cyber-border-subtle rounded-lg p-3
-                                opacity-0 group-hover:opacity-100 transition-opacity
-                                pointer-events-none z-10 w-48">
-                    <div className="text-sm font-bold text-white mb-1">{asset.name}</div>
-                    <div className="text-xs text-cyber-text-muted mb-2">{asset.symbol}</div>
-                    <div className="space-y-1 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-cyber-text-muted">RS-Ratio:</span>
-                        <span className="text-white">{asset.coordinate.rs_ratio.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-cyber-text-muted">RS-Momentum:</span>
-                        <span className="text-white">{asset.coordinate.rs_momentum.toFixed(1)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-cyber-text-muted">Return:</span>
-                        <span className={asset.period_return >= 0 ? 'text-green-400' : 'text-red-400'}>
-                          {asset.period_return >= 0 ? '+' : ''}{asset.period_return.toFixed(1)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center pt-1 border-t border-cyber-border-subtle mt-1">
-                        <span className="text-cyber-text-muted">Status:</span>
-                        <span className={quadrantLabels[asset.coordinate.quadrant].color}>
-                          {quadrantLabels[asset.coordinate.quadrant].emoji} {quadrantLabels[asset.coordinate.quadrant].text}
-                        </span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
+        </div>
 
-          {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-4">
-            {/* Risk Assets */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-cyber-text-muted uppercase">Risk:</span>
-              {risk_assets.map(asset => (
-                <div key={asset.symbol} className="flex items-center gap-1">
-                  <div 
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: asset.color }}
-                  />
-                  <span className="text-xs text-white">{asset.symbol}</span>
+        {/* Right Column - Sidebar */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Regime Indicator Card */}
+          <div style={{
+            background: COLORS.background,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: '8px',
+            padding: '16px'
+          }}>
+            <div style={{ 
+              fontSize: '11px', 
+              color: COLORS.textSecondary,
+              textTransform: 'uppercase',
+              marginBottom: '12px'
+            }}>
+              Market Regime
+            </div>
+            
+            {/* Regime Badge */}
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: `${regimeColor}20`,
+              border: `1px solid ${regimeColor}40`,
+              borderRadius: '6px',
+              marginBottom: '16px'
+            }}>
+              <span style={{ fontSize: '18px' }}>{regime.emoji}</span>
+              <span style={{ 
+                fontWeight: 'bold', 
+                color: regimeColor,
+                fontSize: '14px'
+              }}>
+                {regime.regime?.replace('_', '-').toUpperCase()}
+              </span>
+            </div>
+
+            {/* Score Gauge */}
+            <div style={{ marginTop: '12px' }}>
+              <div style={{
+                display: 'flex',
+                gap: '4px',
+                marginBottom: '8px'
+              }}>
+                {[0, 1, 2, 3, 4, 5].map((i) => {
+                  const isActive = (regime.score + 10) / 20 * 6 > i;
+                  const segmentColors = ['#f85149', '#f85149', '#d29922', '#d29922', '#3fb950', '#3fb950'];
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        flex: 1,
+                        height: '8px',
+                        backgroundColor: isActive ? segmentColors[i] : `${COLORS.border}`,
+                        borderRadius: '2px',
+                        boxShadow: isActive ? `0 0 6px ${segmentColors[i]}` : 'none'
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                fontSize: '9px',
+                color: COLORS.textMuted
+              }}>
+                <span>Risk-Off</span>
+                <span>Neutral</span>
+                <span>Risk-On</span>
+              </div>
+              <div style={{
+                fontSize: '11px',
+                color: COLORS.textSecondary,
+                marginTop: '8px'
+              }}>
+                Score: {regime.score} / 10
+              </div>
+            </div>
+          </div>
+
+          {/* Risk Assets Card */}
+          <div style={{
+            background: COLORS.background,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: '8px',
+            padding: '16px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px',
+              paddingBottom: '12px',
+              borderBottom: `1px solid ${COLORS.border}`
+            }}>
+              <span>🔴</span>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: COLORS.textPrimary 
+              }}>
+                Risk Assets
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {risk_assets.map((asset) => (
+                <div key={asset.symbol} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: ETF_COLORS[asset.symbol] || '#6b7280',
+                    border: '2px solid #ffffff',
+                    flexShrink: 0
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: COLORS.textPrimary
+                    }}>
+                      {asset.symbol} <span style={{ color: COLORS.textMuted }}>({asset.name})</span>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '10px',
+                    color: COLORS.textSecondary
+                  }}>
+                    {QUADRANT_EMOJIS[asset.coordinate.quadrant]} {asset.coordinate.quadrant.charAt(0).toUpperCase() + asset.coordinate.quadrant.slice(1)}
+                  </span>
+                  <span style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: asset.period_return >= 0 ? '#3fb950' : '#f85149'
+                  }}>
+                    {asset.period_return >= 0 ? '+' : ''}{asset.period_return.toFixed(1)}%
+                  </span>
                 </div>
               ))}
             </div>
-            
-            {/* Safe Haven */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-cyber-text-muted uppercase">Safe Haven:</span>
-              {safe_haven_assets.map(asset => (
-                <div key={asset.symbol} className="flex items-center gap-1">
-                  <div 
-                    className="w-3 h-3 rounded-full border border-dashed border-yellow-400"
-                    style={{ backgroundColor: asset.color }}
-                  />
-                  <span className="text-xs text-white">{asset.symbol}</span>
+          </div>
+
+          {/* Safe Haven Card */}
+          <div style={{
+            background: COLORS.background,
+            border: `1px solid ${COLORS.border}`,
+            borderRadius: '8px',
+            padding: '16px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '12px',
+              paddingBottom: '12px',
+              borderBottom: `1px solid ${COLORS.border}`
+            }}>
+              <span>🟡</span>
+              <span style={{ 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: COLORS.textPrimary 
+              }}>
+                Safe Haven
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {safe_haven_assets.map((asset) => (
+                <div key={asset.symbol} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <div style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    backgroundColor: ETF_COLORS[asset.symbol] || '#6b7280',
+                    border: `2px solid ${COLORS.safeHavenBorder}`,
+                    flexShrink: 0
+                  }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      color: COLORS.textPrimary
+                    }}>
+                      {asset.symbol} <span style={{ color: COLORS.textMuted }}>({asset.name})</span>
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize: '10px',
+                    color: COLORS.textSecondary
+                  }}>
+                    {QUADRANT_EMOJIS[asset.coordinate.quadrant]} {asset.coordinate.quadrant.charAt(0).toUpperCase() + asset.coordinate.quadrant.slice(1)}
+                  </span>
+                  <span style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: asset.period_return >= 0 ? '#3fb950' : '#f85149'
+                  }}>
+                    {asset.period_return >= 0 ? '+' : ''}{asset.period_return.toFixed(1)}%
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Right Panel - Recommendations & Insights */}
-        <div className="space-y-4">
-          {/* Top Picks */}
-          {top_picks.length > 0 && (
-            <div className="bg-cyber-bg-secondary rounded-lg p-4 border border-cyber-border-subtle">
-              <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-green-400" />
-                Top Picks
-              </h3>
-              <div className="space-y-2">
-                {top_picks.map((pick) => (
-                  <div 
-                    key={pick.symbol}
-                    className="flex items-center justify-between p-2 bg-cyber-bg-card rounded-lg"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg font-bold text-cyber-text-muted">#{pick.rank}</span>
-                      <div 
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: pick.color }}
-                      />
-                      <div>
-                        <div className="text-sm font-bold text-white">{pick.symbol}</div>
-                        <div className="text-xs text-cyber-text-muted">{pick.name}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className={`text-sm font-bold ${pick.period_return >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {pick.period_return >= 0 ? '+' : ''}{pick.period_return.toFixed(1)}%
-                      </div>
-                      <div className="text-xs text-cyber-text-muted">{pick.reason}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* Recommendation Section */}
+      <div style={{
+        marginTop: '20px',
+        background: 'linear-gradient(135deg, #161b22 0%, #1c2128 100%)',
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: '12px',
+        padding: '25px'
+      }}>
+        {/* Section Header */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Target size={20} color="#22d3ee" />
+            <span style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: COLORS.textPrimary
+            }}>
+              🎯 Investment Recommendation
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {regime.risk_summary && (
+              <span style={{
+                padding: '6px 12px',
+                backgroundColor: 'rgba(63,185,80,0.15)',
+                color: '#3fb950',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 500
+              }}>
+                Risk: {regime.risk_summary}
+              </span>
+            )}
+            {regime.safe_summary && (
+              <span style={{
+                padding: '6px 12px',
+                backgroundColor: 'rgba(255,215,0,0.15)',
+                color: '#ffd700',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 500
+              }}>
+                Safe: {regime.safe_summary}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Top Picks Box */}
+        {top_picks.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(63,185,80,0.12) 0%, rgba(63,185,80,0.04) 100%)',
+            border: '1px solid rgba(63,185,80,0.25)',
+            borderRadius: '10px',
+            padding: '20px',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              marginBottom: '16px'
+            }}>
+              <span style={{
+                background: '#3fb950',
+                color: '#0d1117',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                padding: '4px 10px',
+                borderRadius: '4px',
+                textTransform: 'uppercase'
+              }}>
+                🏆 Top Pick
+              </span>
+              <span style={{
+                fontSize: '13px',
+                color: COLORS.textSecondary
+              }}>
+                Recommended Sectors to Invest
+              </span>
             </div>
-          )}
-
-          {/* Action Groups */}
-          {action_groups.length > 0 && (
-            <div className="bg-cyber-bg-secondary rounded-lg p-4 border border-cyber-border-subtle">
-              <h3 className="text-sm font-bold text-white mb-3">Action Signals</h3>
-              <div className="space-y-2">
-                {action_groups.map((group) => (
-                  <div key={group.action} className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 min-w-[120px]">
-                      {group.action === 'buy' && <CheckCircle className="w-4 h-4 text-green-400" />}
-                      {group.action === 'watch' && <AlertCircle className="w-4 h-4 text-blue-400" />}
-                      {group.action === 'reduce' && <TrendingDown className="w-4 h-4 text-yellow-400" />}
-                      {group.action === 'avoid' && <XCircle className="w-4 h-4 text-red-400" />}
-                      <span className={`text-sm font-bold capitalize
-                        ${group.action === 'buy' ? 'text-green-400' : ''}
-                        ${group.action === 'watch' ? 'text-blue-400' : ''}
-                        ${group.action === 'reduce' ? 'text-yellow-400' : ''}
-                        ${group.action === 'avoid' ? 'text-red-400' : ''}
-                      `}>
-                        {group.label}
-                      </span>
+            
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '16px'
+            }}>
+              {top_picks.map((pick) => (
+                <div key={pick.symbol} style={{
+                  background: COLORS.background,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: '8px',
+                  padding: '16px'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '8px'
+                  }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: '#3fb950',
+                      color: '#0d1117',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      fontWeight: 'bold'
+                    }}>
+                      {pick.rank}
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {group.symbols.map(sym => (
-                        <span key={sym} className="text-xs bg-cyber-bg-card px-2 py-1 rounded text-cyber-text-secondary">
-                          {sym}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Key Insights */}
-          {insights.length > 0 && (
-            <div className="bg-cyber-bg-secondary rounded-lg p-4 border border-cyber-border-subtle">
-              <h3 className="text-sm font-bold text-white mb-3">Key Insights</h3>
-              <div className="space-y-2">
-                {insights.map((insight, idx) => (
-                  <div key={idx} className="flex items-start gap-3 text-sm">
-                    <span className="text-lg">{insight.emoji}</span>
-                    <span className="text-cyber-text-secondary">
-                      {insight.highlight ? (
-                        <>
-                          {insight.text.split(insight.highlight)[0]}
-                          <span className="text-white font-bold">{insight.highlight}</span>
-                          {insight.text.split(insight.highlight)[1]}
-                        </>
-                      ) : insight.text}
+                    <div style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      backgroundColor: pick.color
+                    }} />
+                    <span style={{
+                      fontSize: '15px',
+                      fontWeight: 'bold',
+                      color: COLORS.textPrimary
+                    }}>
+                      {pick.symbol}
                     </span>
                   </div>
-                ))}
-              </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: COLORS.textSecondary,
+                    marginBottom: '4px'
+                  }}>
+                    {pick.name}
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: COLORS.textMuted,
+                    marginBottom: '8px'
+                  }}>
+                    {pick.reason}
+                  </div>
+                  <div style={{
+                    fontSize: '15px',
+                    fontWeight: 700,
+                    color: '#3fb950'
+                  }}>
+                    +{pick.period_return.toFixed(1)}%
+                  </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Summary */}
-          {(regime.risk_summary || regime.safe_summary) && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-cyber-bg-secondary rounded-lg p-3 border border-cyber-border-subtle">
-                <div className="text-xs text-cyber-text-muted mb-1">Risk Assets</div>
-                <div className="text-sm text-white">{regime.risk_summary || 'None'}</div>
-              </div>
-              <div className="bg-cyber-bg-secondary rounded-lg p-3 border border-cyber-border-subtle">
-                <div className="text-xs text-cyber-text-muted mb-1">Safe Haven</div>
-                <div className="text-sm text-white">{regime.safe_summary || 'None'}</div>
-              </div>
+        {/* Action Grid - 4 Boxes */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '12px',
+          marginBottom: '20px'
+        }}>
+          {/* BUY */}
+          <div style={{
+            border: '2px solid #3fb950',
+            background: 'rgba(63, 185, 80, 0.08)',
+            borderRadius: '10px',
+            padding: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: '#3fb950',
+              marginBottom: '10px',
+              fontWeight: 600
+            }}>
+              ✅ Buy / Add
             </div>
-          )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {buyGroup?.symbols?.map(sym => (
+                <div key={sym} style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: COLORS.textPrimary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: ETF_COLORS[sym]
+                  }} />
+                  {sym}
+                </div>
+              )) || <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>—</span>}
+            </div>
+          </div>
+
+          {/* WATCH */}
+          <div style={{
+            border: '2px solid #58a6ff',
+            background: 'rgba(88, 166, 255, 0.08)',
+            borderRadius: '10px',
+            padding: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: '#58a6ff',
+              marginBottom: '10px',
+              fontWeight: 600
+            }}>
+              📌 Watch / Entry
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {watchGroup?.symbols?.map(sym => (
+                <div key={sym} style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: COLORS.textPrimary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: ETF_COLORS[sym],
+                    border: sym === 'GLD' || sym === 'TLT' || sym === 'SHY' || sym === 'UUP' ? `1px solid ${COLORS.safeHavenBorder}` : 'none'
+                  }} />
+                  {sym}
+                </div>
+              )) || <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>—</span>}
+            </div>
+          </div>
+
+          {/* REDUCE */}
+          <div style={{
+            border: '2px solid #d29922',
+            background: 'rgba(210, 153, 34, 0.08)',
+            borderRadius: '10px',
+            padding: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: '#d29922',
+              marginBottom: '10px',
+              fontWeight: 600
+            }}>
+              ⚠️ Take Profit
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {reduceGroup?.symbols?.map(sym => (
+                <div key={sym} style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: COLORS.textPrimary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: ETF_COLORS[sym],
+                    border: sym === 'GLD' || sym === 'TLT' || sym === 'SHY' || sym === 'UUP' ? `1px solid ${COLORS.safeHavenBorder}` : 'none'
+                  }} />
+                  {sym}
+                </div>
+              )) || <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>—</span>}
+            </div>
+          </div>
+
+          {/* AVOID */}
+          <div style={{
+            border: '2px solid #f85149',
+            background: 'rgba(248, 81, 73, 0.08)',
+            borderRadius: '10px',
+            padding: '15px',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              color: '#f85149',
+              marginBottom: '10px',
+              fontWeight: 600
+            }}>
+              🚫 Avoid
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {avoidGroup?.symbols?.map(sym => (
+                <div key={sym} style={{
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  color: COLORS.textPrimary,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: ETF_COLORS[sym],
+                    border: sym === 'GLD' || sym === 'TLT' || sym === 'SHY' || sym === 'UUP' ? `1px solid ${COLORS.safeHavenBorder}` : 'none'
+                  }} />
+                  {sym}
+                </div>
+              )) || <span style={{ color: COLORS.textMuted, fontSize: '11px' }}>—</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Key Insights */}
+        {insights.length > 0 && (
+          <div style={{
+            background: '#21262d',
+            borderRadius: '10px',
+            padding: '20px',
+            marginBottom: '16px'
+          }}>
+            <div style={{
+              fontSize: '13px',
+              color: COLORS.textSecondary,
+              marginBottom: '12px'
+            }}>
+              📊 Key Insights
+            </div>
+            <ul style={{
+              listStyle: 'none',
+              padding: 0,
+              margin: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px'
+            }}>
+              {insights.slice(0, 5).map((insight, idx) => (
+                <li key={idx} style={{
+                  fontSize: '13px',
+                  color: '#c9d1d9',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '8px'
+                }}>
+                  <span style={{ flexShrink: 0 }}>{insight.emoji}</span>
+                  <span>
+                    {insight.highlight ? (
+                      <>
+                        {insight.text.split(insight.highlight)[0]}
+                        <strong style={{ color: COLORS.textPrimary }}>{insight.highlight}</strong>
+                        {insight.text.split(insight.highlight)[1]}
+                      </>
+                    ) : insight.text}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Disclaimer */}
+        <div style={{
+          fontSize: '11px',
+          color: COLORS.textMuted,
+          fontStyle: 'italic',
+          textAlign: 'center'
+        }}>
+          ⚠️ Disclaimer: RRG Rotation Map is for informational purposes only. Not financial advice.
         </div>
       </div>
     </div>
