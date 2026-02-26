@@ -54,6 +54,139 @@ const QUADRANT_EMOJIS = {
   improving: '📈',
 };
 
+// Smart label positioning to avoid overlaps
+function ETFDotsWithLabels({ assets, scaleX, scaleY }) {
+  // Calculate positions for all assets
+  const positions = assets.map(asset => ({
+    symbol: asset.symbol,
+    x: scaleX(asset.coordinate.rs_ratio),
+    y: scaleY(asset.coordinate.rs_momentum),
+    category: asset.category,
+    color: ETF_COLORS[asset.symbol] || '#6b7280'
+  }));
+  
+  // Determine label positions to minimize overlap
+  const labelPositions = {};
+  
+  positions.forEach((pos, i) => {
+    const isSafeHaven = pos.category === 'safe_haven';
+    
+    // Default: below the dot
+    let placement = 'below';
+    
+    // Check proximity to other dots
+    const nearbyDots = positions.filter((other, j) => {
+      if (i === j) return false;
+      const dx = pos.x - other.x;
+      const dy = pos.y - other.y;
+      return Math.sqrt(dx * dx + dy * dy) < 25; // Within 25% distance
+    });
+    
+    // Determine best placement based on quadrant and nearby dots
+    if (pos.x > 50 && pos.y > 50) {
+      // Top-right quadrant (Leading) - prefer left or below
+      placement = nearbyDots.some(d => d.y > pos.y) ? 'left' : 'below';
+    } else if (pos.x < 50 && pos.y > 50) {
+      // Top-left (Improving) - prefer right or below  
+      placement = nearbyDots.some(d => d.y > pos.y) ? 'right' : 'below';
+    } else if (pos.x < 50 && pos.y < 50) {
+      // Bottom-left (Lagging) - prefer right or above
+      placement = nearbyDots.some(d => d.y < pos.y) ? 'right' : 'above';
+    } else {
+      // Bottom-right (Weakening) - prefer left or above
+      placement = nearbyDots.some(d => d.y < pos.y) ? 'left' : 'above';
+    }
+    
+    // Special cases for known overlapping symbols
+    const overlapsBelow = ['IWM', 'SHY', 'UUP', 'TLT'];
+    const overlapsAbove = ['QQQ', 'IBIT'];
+    
+    if (overlapsBelow.includes(pos.symbol)) {
+      placement = 'left';
+    } else if (overlapsAbove.includes(pos.symbol)) {
+      placement = 'right';
+    }
+    
+    labelPositions[pos.symbol] = {
+      ...pos,
+      placement,
+      isSafeHaven
+    };
+  });
+  
+  const getLabelStyle = (placement) => {
+    const base = {
+      position: 'absolute',
+      fontSize: '10px',
+      fontWeight: 600,
+      color: COLORS.textPrimary,
+      background: 'rgba(22,27,34,0.95)',
+      padding: '2px 5px',
+      borderRadius: '3px',
+      whiteSpace: 'nowrap',
+      zIndex: 20
+    };
+    
+    switch (placement) {
+      case 'above':
+        return { ...base, bottom: '18px', left: '50%', transform: 'translateX(-50%)' };
+      case 'below':
+        return { ...base, top: '18px', left: '50%', transform: 'translateX(-50%)' };
+      case 'left':
+        return { ...base, right: '18px', top: '50%', transform: 'translateY(-50%)' };
+      case 'right':
+        return { ...base, left: '18px', top: '50%', transform: 'translateY(-50%)' };
+      default:
+        return { ...base, top: '18px', left: '50%', transform: 'translateX(-50%)' };
+    }
+  };
+  
+  return (
+    <>
+      {Object.values(labelPositions).map((pos) => (
+        <div
+          key={pos.symbol}
+          style={{
+            position: 'absolute',
+            left: `calc(20px + (100% - 40px) * ${pos.x / 100})`,
+            top: `calc(20px + (100% - 40px) * ${pos.y / 100})`,
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10
+          }}
+        >
+          {/* Dot */}
+          <div
+            style={{
+              width: '14px',
+              height: '14px',
+              borderRadius: '50%',
+              backgroundColor: pos.color,
+              border: pos.isSafeHaven 
+                ? `2px solid ${COLORS.safeHavenBorder}` 
+                : '2px solid #ffffff',
+              boxShadow: pos.isSafeHaven 
+                ? `0 0 8px ${COLORS.safeHavenGlow}` 
+                : '0 2px 8px rgba(0,0,0,0.5)',
+              cursor: 'pointer',
+              transition: 'transform 0.3s ease'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'scale(1.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'scale(1)';
+            }}
+          />
+          {/* Smart Label */}
+          <div style={getLabelStyle(pos.placement)}>
+            {pos.symbol}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function RRGRotationMap({ data }) {
   if (!data) {
     return (
@@ -361,66 +494,8 @@ function RRGRotationMap({ data }) {
               Strong RS ▶
             </span>
 
-            {/* ETF Dots */}
-            {allAssets.map((asset) => {
-              const x = scaleX(asset.coordinate.rs_ratio);
-              const y = scaleY(asset.coordinate.rs_momentum);
-              const isSafeHaven = asset.category === 'safe_haven';
-              const color = ETF_COLORS[asset.symbol] || '#6b7280';
-              
-              return (
-                <div
-                  key={asset.symbol}
-                  style={{
-                    position: 'absolute',
-                    left: `calc(20px + (100% - 40px) * ${x / 100})`,
-                    top: `calc(20px + (100% - 40px) * ${y / 100})`,
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 10
-                  }}
-                >
-                  {/* Dot */}
-                  <div
-                    style={{
-                      width: '14px',
-                      height: '14px',
-                      borderRadius: '50%',
-                      backgroundColor: color,
-                      border: isSafeHaven 
-                        ? `2px solid ${COLORS.safeHavenBorder}` 
-                        : '2px solid #ffffff',
-                      boxShadow: isSafeHaven 
-                        ? `0 0 8px ${COLORS.safeHavenGlow}` 
-                        : '0 2px 8px rgba(0,0,0,0.5)',
-                      cursor: 'pointer',
-                      transition: 'transform 0.3s ease'
-                    }}
-                    onMouseEnter={(e) => {
-                      e.target.style.transform = 'scale(1.4)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.transform = 'scale(1)';
-                    }}
-                  />
-                  {/* Label */}
-                  <div style={{
-                    position: 'absolute',
-                    top: '18px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    fontSize: '10px',
-                    fontWeight: 600,
-                    color: COLORS.textPrimary,
-                    background: 'rgba(22,27,34,0.95)',
-                    padding: '2px 5px',
-                    borderRadius: '3px',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {asset.symbol}
-                  </div>
-                </div>
-              );
-            })}
+            {/* ETF Dots with Smart Labels */}
+            <ETFDotsWithLabels assets={allAssets} scaleX={scaleX} scaleY={scaleY} />
           </div>
         </div>
 
