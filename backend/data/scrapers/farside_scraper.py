@@ -232,16 +232,31 @@ class FarsideScraper:
             print(f"[Farside] Error: {e}")
             return self._get_fallback_data(str(e))
     
+    def _get_last_trading_day(self, current_date: datetime) -> datetime:
+        """Get the most recent trading day (skip weekends)."""
+        weekday = current_date.weekday()
+        if weekday == 5:  # Saturday
+            return current_date - timedelta(days=1)
+        elif weekday == 6:  # Sunday
+            return current_date - timedelta(days=2)
+        else:
+            # For weekdays, assume previous day has data available
+            # (ETF flows are typically published T+1)
+            return current_date - timedelta(days=1)
+    
     def _get_mock_data(self) -> Dict[str, Any]:
         """
         Return realistic mock ETF flow data when scraping fails.
-        Based on typical market patterns (IBIT and FBTC usually lead inflows).
+        Uses LAST TRADING DAY's date since today's data may not be published yet.
         """
-        today = datetime.now()
-        # Use a hash of the date to get consistent "random" data for the same day
-        date_hash = hash(today.strftime("%Y-%m-%d")) % 100
+        now = datetime.now()
+        # Use last trading day since ETF flows are published T+1
+        last_trading_day = self._get_last_trading_day(now)
         
-        # Generate realistic flows based on day of month
+        # Use a hash of the date to get consistent "random" data for the same day
+        date_hash = hash(last_trading_day.strftime("%Y-%m-%d")) % 100
+        
+        # Generate realistic flows based on day
         if date_hash > 70:
             # Strong inflow day
             ibit_flow = 250.0 + (date_hash % 50)
@@ -264,7 +279,7 @@ class FarsideScraper:
             total = ibit_flow + fbtc_flow - 20.0
         
         return {
-            'date': today.strftime("%Y-%m-%d"),
+            'date': last_trading_day.strftime("%Y-%m-%d"),
             'total_flow': round(total, 1),
             'flows': {
                 'IBIT': round(ibit_flow, 1),
@@ -276,7 +291,7 @@ class FarsideScraper:
             },
             'cumulative_since_launch': 38500.0,  # Approximate cumulative
             'source': 'mock_data',
-            'note': 'Using realistic estimated data (Farside blocked by Cloudflare)'
+            'note': f'Using estimated data for {last_trading_day.strftime("%Y-%m-%d")} (Farside blocked)'
         }
     
     def _get_fallback_data(self, reason: str = "Unknown error") -> Dict[str, Any]:
