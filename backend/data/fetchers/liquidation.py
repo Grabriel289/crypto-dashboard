@@ -23,15 +23,16 @@ class LiquidationFetcher:
     def _get_cached(self, key: str) -> Optional[Dict[str, Any]]:
         """Get cached data if not expired."""
         if key in self._cache:
-            cached_time, data = self._cache[key]
-            if (datetime.utcnow() - cached_time).seconds < self._cache_ttl:
-                print(f"[Heatmap] Using cached data ({(datetime.utcnow() - cached_time).seconds}s old)")
+            cached_time, ttl, data = self._cache[key]
+            if (datetime.utcnow() - cached_time).seconds < ttl:
+                print(f"[Heatmap] Using cached data ({(datetime.utcnow() - cached_time).seconds}s old, ttl={ttl}s)")
                 return data
         return None
-    
-    def _set_cached(self, key: str, data: Dict[str, Any]):
-        """Cache data with timestamp."""
-        self._cache[key] = (datetime.utcnow(), data)
+
+    def _set_cached(self, key: str, data: Dict[str, Any], ttl: Optional[int] = None):
+        """Cache data with timestamp. Uses data['_cache_ttl'] if set, else default TTL."""
+        effective_ttl = ttl or data.pop('_cache_ttl', None) or self._cache_ttl
+        self._cache[key] = (datetime.utcnow(), effective_ttl, data)
     
     async def _get_session(self) -> aiohttp.ClientSession:
         """Get or create aiohttp session."""

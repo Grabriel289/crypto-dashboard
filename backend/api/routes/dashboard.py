@@ -81,7 +81,7 @@ async def get_crypto_pulse() -> Dict[str, Any]:
     from data.scheduler import data_cache
     cached_fragility = data_cache.get('fragility')
     
-    if cached_fragility and cached_fragility.get('fragility', {}).get('score'):
+    if cached_fragility and cached_fragility.get('fragility', {}).get('score') is not None:
         # Use cached fragility data (updated hourly by scheduler)
         fragility = cached_fragility.get('fragility', {})
         fragility['cached_at'] = data_cache.get_timestamp('fragility').isoformat() if data_cache.get_timestamp('fragility') else None

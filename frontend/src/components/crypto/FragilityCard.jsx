@@ -4,7 +4,8 @@ import { AlertTriangle } from 'lucide-react'
 function FragilityCard({ data }) {
   if (!data) return null
 
-  const { score, label, emoji, color, components } = data
+  const { score, label, level, emoji } = data
+  const displayLabel = label || level
 
   const getBarColor = (score) => {
     if (score >= 75) return 'from-cyber-accent-red to-cyber-accent-red-dim'
@@ -51,7 +52,7 @@ function FragilityCard({ data }) {
         <div className="flex items-center justify-between">
           <span className="text-sm text-cyber-text-secondary">Composite</span>
           <span className={`font-bold ${score >= 50 ? 'text-cyber-accent-orange' : 'text-cyber-accent-green'}`}>
-            {score} {emoji}
+            {score} {emoji} {displayLabel && <span className="text-sm font-normal opacity-75">{displayLabel}</span>}
           </span>
         </div>
       </div>

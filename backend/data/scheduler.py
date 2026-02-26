@@ -192,15 +192,22 @@ class DataScheduler:
         print(">>> Data scheduler stopped")
     
     async def run_initial_fetch(self):
-        """Run initial data fetch on startup."""
+        """Run initial data fetch on startup.
+
+        Fragility is fetched separately after other Binance-dependent fetchers
+        to avoid rate limiting (fragility requires 5 concurrent Binance API calls).
+        """
         print(">>> Running initial data fetch...")
         await asyncio.gather(
             self._update_macro(),
             self._update_fear_greed(),
             self._update_funding(),
             self._update_crypto_prices(),
-            self._update_fragility()  # Fetch fragility on startup
         )
+        # Run fragility separately after a short pause so other Binance calls settle
+        print(">>> Running fragility fetch (staggered)...")
+        await asyncio.sleep(3)
+        await self._update_fragility()
         print(">>> Initial data fetch complete")
 
 
