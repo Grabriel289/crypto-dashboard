@@ -99,7 +99,7 @@ class MacroTideScorer:
                 leaks["fiscal_dominance"]["penalty"] = 0.0
                 leaks["fiscal_dominance"]["status"] = "🟢 OK"
         
-        # Gold Cannibalization - using real BTC ETF flow data from farside.co.uk
+        # Gold Cannibalization - real BTC ETF flows via Yahoo Finance AUM delta
         etf_flows = await farside_scraper.scrape_etf_flows()
         gold_cannibalization = farside_scraper.get_gold_cannibalization_signal(etf_flows)
         
