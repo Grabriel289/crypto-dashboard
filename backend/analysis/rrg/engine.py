@@ -325,12 +325,9 @@ class RRGEngine:
             return "lagging"
 
     def _determine_action(self, quadrant: str, category: str) -> str:
-        if category == "risk":
-            return {"leading": "buy", "improving": "watch",
-                    "weakening": "reduce", "lagging": "avoid"}[quadrant]
-        else:
-            return {"leading": "watch", "improving": "watch",
-                    "weakening": "reduce", "lagging": "avoid"}[quadrant]
+        # Recommendation is quadrant-only; category is for display grouping only
+        return {"leading": "buy", "improving": "watch",
+                "weakening": "reduce", "lagging": "avoid"}[quadrant]
 
     def _format_summary(self, counts: Dict[str, int]) -> str:
         parts = []
