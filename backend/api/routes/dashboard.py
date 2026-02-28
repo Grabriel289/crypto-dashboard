@@ -469,10 +469,10 @@ async def get_full_dashboard() -> Dict[str, Any]:
 @router.get("/rrg-rotation")
 async def get_rrg_rotation() -> Dict[str, Any]:
     """
-    Get RRG (Relative Rotation Graph) Rotation Map data.
-    
+    Get Accelerating Momentum Rotation Map data.
+
     Returns:
-        - ETF positions with RS-Ratio and RS-Momentum coordinates
+        - ETF positions with Momentum Score (x) and Acceleration Score (y)
         - Market regime (Risk-On/Risk-Off/Neutral)
         - Top investment picks
         - Action groups (Buy/Watch/Reduce/Avoid)
@@ -485,14 +485,14 @@ async def get_rrg_rotation() -> Dict[str, Any]:
         
         # Fetch price data
         price_data = await fetcher.fetch_all_symbols()
-        
-        if not price_data or "SPY" not in price_data:
+
+        if not price_data:
             return {
                 "error": "Unable to fetch price data",
                 "timestamp": datetime.now().isoformat()
             }
-        
-        # Calculate RRG for all ETFs
+
+        # Calculate Accelerating Momentum scores for all ETFs
         results = engine.calculate_all(price_data)
         
         # Detect market regime
@@ -556,7 +556,7 @@ async def get_rrg_rotation() -> Dict[str, Any]:
             "top_picks": top_picks,
             "action_groups": action_groups,
             "insights": insights,
-            "calculation_period": 10,
+            "calculation_period": 21,
             "data_freshness": "Live"
         }
         
