@@ -214,39 +214,57 @@ class RRGEngine:
     # ------------------------------------------------------------------
 
     def get_top_picks(self, results: List[RRGResult], count: int = 3) -> List[Dict]:
-        candidates = [r for r in results if r.quadrant in ("leading", "improving")]
-
-        def sort_key(r: RRGResult):
-            return ({"leading": 0, "improving": 1}.get(r.quadrant, 99), -r.period_return)
-
-        candidates.sort(key=sort_key)
+        """
+        Top picks = top 3 assets ranked by acceleration (Y-score) descending.
+        Matches the backtest portfolio: always hold the fastest-accelerating assets.
+        """
+        sorted_by_accel = sorted(results, key=lambda r: r.rs_momentum, reverse=True)
+        rank_reasons = {
+            1: "Fastest acceleration — highest conviction",
+            2: "Strong acceleration — high conviction entry",
+            3: "Accelerating — momentum building",
+        }
         picks = []
-        for i, result in enumerate(candidates[:count], start=1):
-            reason = {
-                "leading": "Strongest momentum, leading rotation",
-                "improving": "Improving momentum, early entry",
-            }.get(result.quadrant, "")
+        for i, result in enumerate(sorted_by_accel[:count], start=1):
             picks.append({
                 "rank": i,
                 "symbol": result.symbol,
                 "name": result.name,
-                "reason": reason,
+                "reason": rank_reasons.get(i, f"Acceleration rank #{i}"),
                 "period_return": result.period_return,
                 "color": result.color,
             })
         return picks
 
     def get_action_groups(self, results: List[RRGResult]) -> List[Dict]:
+        """
+        Rank all assets by Y-score (acceleration) descending, then assign buckets:
+
+          Rank 1-3              → Buy / Add       (top picks)
+          Rank 4-6 AND Y ≥ 100 → Watch / Entry   (next candidates, still accelerating)
+          Y < 100  AND not bottom-3 → Take Profit (decelerating, not worst)
+          Bottom 3 by Y-score   → Avoid           (worst acceleration)
+        """
+        sorted_by_accel = sorted(results, key=lambda r: r.rs_momentum, reverse=True)
+        n = len(sorted_by_accel)
+
         actions: Dict[str, List] = {"buy": [], "watch": [], "reduce": [], "avoid": []}
-        for result in results:
-            action = self._determine_action(result.quadrant, result.category)
-            actions[action].append(result.symbol)
+
+        for rank, result in enumerate(sorted_by_accel, start=1):
+            if rank <= 3:
+                actions["buy"].append(result.symbol)
+            elif rank <= 6 and result.rs_momentum >= 100:
+                actions["watch"].append(result.symbol)
+            elif result.rs_momentum < 100 and rank <= n - 3:
+                actions["reduce"].append(result.symbol)
+            else:
+                actions["avoid"].append(result.symbol)
 
         action_labels = {
-            "buy":    {"label": "Buy / Add",      "emoji": "✅"},
-            "watch":  {"label": "Watch / Entry",  "emoji": "📌"},
-            "reduce": {"label": "Take Profit",    "emoji": "⚠️"},
-            "avoid":  {"label": "Avoid",          "emoji": "🚫"},
+            "buy":    {"label": "Buy / Add",     "emoji": "✅"},
+            "watch":  {"label": "Watch / Entry", "emoji": "📌"},
+            "reduce": {"label": "Take Profit",   "emoji": "⚠️"},
+            "avoid":  {"label": "Avoid",         "emoji": "🚫"},
         }
         return [
             {
@@ -262,53 +280,81 @@ class RRGEngine:
     def generate_insights(
         self, results: List[RRGResult], regime: RegimeResult
     ) -> List[Dict]:
+        """
+        Generate up to 3 key insights based on Top-3 acceleration composition,
+        crypto status, watch-list rotation, and take-profit warnings.
+        """
+        sorted_by_accel = sorted(results, key=lambda r: r.rs_momentum, reverse=True)
+        n = len(sorted_by_accel)
+        top3 = sorted_by_accel[:3]
         insights = []
 
-        leading = [r for r in results if r.quadrant == "leading"]
-        if leading:
-            names = " & ".join(r.name for r in leading[:2])
+        # Insight 1: Top-3 composition — risk vs safe-haven dominance
+        risk_in_top3 = [r for r in top3 if r.category == "risk"]
+        safe_in_top3 = [r for r in top3 if r.category == "safe_haven"]
+
+        if len(risk_in_top3) >= 2:
+            names = " & ".join(r.name for r in risk_in_top3[:2])
             insights.append({
                 "emoji": "🚀",
-                "text": f"{names} leading — Risk appetite is HIGH",
+                "text": f"{names} accelerating — Risk appetite is HIGH",
+                "highlight": names,
+            })
+        elif len(safe_in_top3) >= 2:
+            names = " & ".join(r.name for r in safe_in_top3[:2])
+            insights.append({
+                "emoji": "🛡️",
+                "text": f"{names} leading — Flight to safety detected",
                 "highlight": names,
             })
 
-        safe_weakening = [
-            r for r in results
-            if r.category == "safe_haven" and r.quadrant in ("weakening", "lagging")
-        ]
-        if safe_weakening:
-            names = " & ".join(r.name for r in safe_weakening[:2])
-            insights.append({
-                "emoji": "⚠️",
-                "text": (
-                    f"{names} weakening — Safe haven outflow confirms "
-                    f"{regime.regime.replace('_', '-').upper()}"
-                ),
-                "highlight": names,
-            })
+        # Insight 2: Crypto (IBIT / ETHA) status
+        crypto = [r for r in results if r.symbol in ("IBIT", "ETHA")]
+        crypto_accel = [r for r in crypto if r.rs_momentum >= 100]
+        crypto_decel = [r for r in crypto if r.rs_momentum < 100]
 
-        usd = next((r for r in results if r.symbol == "UUP"), None)
-        if usd and usd.quadrant == "leading":
-            insights.append({
-                "emoji": "💵",
-                "text": "USD strong — Dollar strength (watch for divergence)",
-                "highlight": "USD",
-            })
-
-        improving = [
-            r for r in results
-            if r.quadrant == "improving" and r.category == "risk"
-        ]
-        if improving:
-            names = " & ".join(r.name for r in improving[:2])
+        if crypto_accel:
+            names = " & ".join(r.symbol for r in crypto_accel)
             insights.append({
                 "emoji": "📈",
-                "text": f"{names} improving — Rally broadening signal",
+                "text": f"{names} accelerating — Crypto recovery signal",
+                "highlight": names,
+            })
+        elif crypto_decel:
+            names = " & ".join(r.symbol for r in crypto_decel)
+            insights.append({
+                "emoji": "📉",
+                "text": f"{names} decelerating — Stay cautious on crypto",
                 "highlight": names,
             })
 
-        return insights[:5]
+        # Insight 3: Watch-list (rank 4-6, still accelerating) — rotation candidates
+        watch_candidates = [
+            r for rank, r in enumerate(sorted_by_accel, start=1)
+            if 4 <= rank <= 6 and r.rs_momentum >= 100
+        ]
+        if watch_candidates:
+            names = ", ".join(r.symbol for r in watch_candidates[:2])
+            insights.append({
+                "emoji": "👀",
+                "text": f"{names} approaching top — Watch for rotation",
+                "highlight": names,
+            })
+
+        # Insight 4: Take-profit warning (decelerating, not bottom-3)
+        take_profit = [
+            r for rank, r in enumerate(sorted_by_accel, start=1)
+            if r.rs_momentum < 100 and rank <= n - 3
+        ]
+        if take_profit:
+            names = ", ".join(r.symbol for r in take_profit[:2])
+            insights.append({
+                "emoji": "⚠️",
+                "text": f"{names} losing momentum — Consider taking profit",
+                "highlight": names,
+            })
+
+        return insights[:3]
 
     # ------------------------------------------------------------------
     # Helpers
