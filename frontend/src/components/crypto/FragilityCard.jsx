@@ -42,7 +42,7 @@ function FragilityCard({ data }) {
               asset.score >= 50 ? 'text-cyber-accent-red' : 
               asset.score >= 25 ? 'text-cyber-accent-yellow' : 'text-cyber-accent-green'
             }`}>
-              {asset.score}
+              {Number(asset.score).toFixed(1)}
             </span>
           </div>
         ))}
@@ -52,7 +52,7 @@ function FragilityCard({ data }) {
         <div className="flex items-center justify-between">
           <span className="text-sm text-cyber-text-secondary">Composite</span>
           <span className={`font-bold ${score >= 50 ? 'text-cyber-accent-orange' : 'text-cyber-accent-green'}`}>
-            {score} {emoji} {displayLabel && <span className="text-sm font-normal opacity-75">{displayLabel}</span>}
+            {Number(score).toFixed(1)} {emoji} {displayLabel && <span className="text-sm font-normal opacity-75">{displayLabel}</span>}
           </span>
         </div>
       </div>
