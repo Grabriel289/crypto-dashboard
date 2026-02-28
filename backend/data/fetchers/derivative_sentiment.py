@@ -6,14 +6,12 @@ import os
 import json
 from datetime import datetime, timedelta
 
-from data.utils.rate_limiter import binance_rate_limiter
-
 
 class DerivativeSentimentFetcher:
     """Fetch derivative sentiment data from Binance Futures with rate limiting."""
     
-    BINANCE_FAPI = "https://fapi.binance.com"
-    BINANCE_API = "https://api.binance.com"
+    BYBIT_BASE_URL = "https://api.bybit.com"
+    BINANCE_API = "https://api.binance.com"  # spot price (no geo-restriction)
     
     SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
     
@@ -39,143 +37,94 @@ class DerivativeSentimentFetcher:
             await self._session.close()
     
     async def fetch_open_interest(self, symbol: str) -> Dict[str, Any]:
-        """Fetch current open interest with rate limiting."""
-        async def _do_fetch():
+        """Fetch current open interest from Bybit (globally accessible)."""
+        try:
             session = await self._get_session()
-            url = f"{self.BINANCE_FAPI}/fapi/v1/openInterest"
-            params = {"symbol": symbol}
-            
+            url = f"{self.BYBIT_BASE_URL}/v5/market/open-interest"
+            params = {"category": "linear", "symbol": symbol, "intervalTime": "1h", "limit": "1"}
             async with session.get(url, params=params, timeout=10) as resp:
                 if resp.status == 200:
-                    return await resp.json()
-                elif resp.status == 429:
-                    raise Exception(f"429 Too Many Requests for openInterest")
-                return {"openInterest": "0", "symbol": symbol}
-        
-        try:
-            return await binance_rate_limiter.execute_with_retry(
-                _do_fetch,
-                endpoint="openInterest"
-            )
+                    data = await resp.json()
+                    items = data.get("result", {}).get("list", [])
+                    if items:
+                        return {"openInterest": items[0]["openInterest"], "symbol": symbol}
+            return {"openInterest": "0", "symbol": symbol}
         except Exception as e:
-            print(f"Error fetching OI for {symbol}: {e}")
+            print(f"Error fetching OI for {symbol} from Bybit: {e}")
             return {"openInterest": "0", "symbol": symbol}
     
     async def fetch_oi_history(self, symbol: str) -> List[Dict]:
-        """Fetch open interest history (24h) with rate limiting."""
-        async def _do_fetch():
+        """Fetch OI history (24h) from Bybit — returns ASC order (oldest first)."""
+        try:
             session = await self._get_session()
-            url = f"{self.BINANCE_FAPI}/futures/data/openInterestHist"
-            params = {"symbol": symbol, "period": "5m", "limit": 288}  # 24 hours
-            
+            url = f"{self.BYBIT_BASE_URL}/v5/market/open-interest"
+            params = {"category": "linear", "symbol": symbol, "intervalTime": "1h", "limit": "25"}
             async with session.get(url, params=params, timeout=10) as resp:
                 if resp.status == 200:
-                    return await resp.json()
-                elif resp.status == 429:
-                    raise Exception(f"429 Too Many Requests for openInterestHist")
-                return []
-        
-        try:
-            return await binance_rate_limiter.execute_with_retry(
-                _do_fetch,
-                endpoint="openInterestHist"
-            )
+                    data = await resp.json()
+                    items = data.get("result", {}).get("list", [])
+                    # Bybit returns DESC (newest first) — reverse to ASC for change calc
+                    return list(reversed(items))
+            return []
         except Exception as e:
             print(f"Error fetching OI history for {symbol}: {e}")
             return []
     
     async def fetch_retail_long_short(self, symbol: str) -> Dict[str, Any]:
-        """Fetch retail (global) long/short ratio with rate limiting."""
-        async def _do_fetch():
+        """Fetch global long/short ratio from Bybit account-ratio."""
+        try:
             session = await self._get_session()
-            url = f"{self.BINANCE_FAPI}/futures/data/globalLongShortAccountRatio"
-            params = {"symbol": symbol, "period": "1h", "limit": 1}
-            
+            url = f"{self.BYBIT_BASE_URL}/v5/market/account-ratio"
+            params = {"category": "linear", "symbol": symbol, "period": "1h", "limit": "1"}
             async with session.get(url, params=params, timeout=10) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data[0] if data else {}
-                elif resp.status == 429:
-                    raise Exception(f"429 Too Many Requests for globalLongShortAccountRatio")
-                return {}
-        
-        try:
-            return await binance_rate_limiter.execute_with_retry(
-                _do_fetch,
-                endpoint="globalLongShortAccountRatio"
-            )
+                    items = data.get("result", {}).get("list", [])
+                    if items:
+                        return {
+                            "longAccount": items[0].get("buyRatio", "0.5"),
+                            "shortAccount": items[0].get("sellRatio", "0.5"),
+                        }
+            return {}
         except Exception as e:
             print(f"Error fetching retail L/S for {symbol}: {e}")
             return {}
     
     async def fetch_top_trader_long_short(self, symbol: str) -> Dict[str, Any]:
-        """Fetch top trader long/short ratio with rate limiting."""
-        async def _do_fetch():
-            session = await self._get_session()
-            url = f"{self.BINANCE_FAPI}/futures/data/topLongShortPositionRatio"
-            params = {"symbol": symbol, "period": "1h", "limit": 1}
-            
-            async with session.get(url, params=params, timeout=10) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    return data[0] if data else {}
-                elif resp.status == 429:
-                    raise Exception(f"429 Too Many Requests for topLongShortPositionRatio")
-                return {}
-        
-        try:
-            return await binance_rate_limiter.execute_with_retry(
-                _do_fetch,
-                endpoint="topLongShortPositionRatio"
-            )
-        except Exception as e:
-            print(f"Error fetching top trader L/S for {symbol}: {e}")
-            return {}
+        """Bybit has no separate top-trader endpoint — reuse global account-ratio."""
+        return await self.fetch_retail_long_short(symbol)
     
     async def fetch_taker_buy_sell(self, symbol: str) -> Dict[str, Any]:
-        """Fetch taker buy/sell volume ratio with rate limiting."""
-        async def _do_fetch():
+        """Fetch taker buy/sell volume ratio from Bybit."""
+        try:
             session = await self._get_session()
-            url = f"{self.BINANCE_FAPI}/futures/data/takerlongshortRatio"
-            params = {"symbol": symbol, "period": "1h", "limit": 1}
-            
+            url = f"{self.BYBIT_BASE_URL}/v5/market/taker-volume"
+            params = {"category": "linear", "symbol": symbol, "period": "1h", "limit": "1"}
             async with session.get(url, params=params, timeout=10) as resp:
                 if resp.status == 200:
                     data = await resp.json()
-                    return data[0] if data else {}
-                elif resp.status == 429:
-                    raise Exception(f"429 Too Many Requests for takerlongshortRatio")
-                return {}
-        
-        try:
-            return await binance_rate_limiter.execute_with_retry(
-                _do_fetch,
-                endpoint="takerlongshortRatio"
-            )
+                    items = data.get("result", {}).get("list", [])
+                    if items:
+                        buy_vol = float(items[0].get("buyVolume", 0))
+                        sell_vol = float(items[0].get("sellVolume", 0))
+                        if sell_vol > 0:
+                            return {"buySellRatio": buy_vol / sell_vol}
+            return {"buySellRatio": 1.0}
         except Exception as e:
             print(f"Error fetching taker ratio for {symbol}: {e}")
-            return {}
+            return {"buySellRatio": 1.0}
     
     async def fetch_price(self, symbol: str) -> float:
-        """Fetch current price with rate limiting."""
-        async def _do_fetch():
+        """Fetch current price from Binance spot (no geo-restriction)."""
+        try:
             session = await self._get_session()
             url = f"{self.BINANCE_API}/api/v3/ticker/price"
             params = {"symbol": symbol}
-            
             async with session.get(url, params=params, timeout=10) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return float(data.get("price", 0))
-                elif resp.status == 429:
-                    raise Exception(f"429 Too Many Requests for ticker/price")
-                return 0.0
-        
-        try:
-            return await binance_rate_limiter.execute_with_retry(
-                _do_fetch,
-                endpoint="ticker/price"
-            )
+            return 0.0
         except Exception as e:
             print(f"Error fetching price for {symbol}: {e}")
             return 0.0
@@ -351,11 +300,11 @@ class DerivativeSentimentFetcher:
                         results[symbol] = self._get_fallback_data(symbol)
                         continue
                     
-                    # Calculate 24h OI change
+                    # Calculate 24h OI change (Bybit: openInterest in coins, ASC order)
                     oi_change_24h = 0
                     if len(oi_history) >= 2:
-                        oi_now = float(oi_history[-1].get("sumOpenInterestValue", 0))
-                        oi_24h_ago = float(oi_history[0].get("sumOpenInterestValue", 0))
+                        oi_now = float(oi_history[-1].get("openInterest", 0))
+                        oi_24h_ago = float(oi_history[0].get("openInterest", 0))
                         if oi_24h_ago > 0:
                             oi_change_24h = ((oi_now - oi_24h_ago) / oi_24h_ago) * 100
                     
