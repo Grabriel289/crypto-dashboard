@@ -98,43 +98,37 @@ function DerivativeSentiment({ data }) {
         <div className="text-xs text-cyber-text-muted uppercase tracking-wider mb-3">Positioning (1h)</div>
         <div className="bg-cyber-surface rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-4 gap-2 p-3 bg-cyber-bg-primary text-xs text-cyber-text-muted uppercase">
+          <div className="grid grid-cols-3 gap-2 p-3 bg-cyber-bg-primary text-xs text-cyber-text-muted uppercase">
             <div></div>
-            <div title="All accounts Long/Short ratio (1h)">Retail L/S</div>
-            <div title="Top traders by position value (1h)">Top Traders</div>
-            <div className="hidden sm:block" title="Taker buy volume ratio (1h)">Taker Buy/Sell</div>
+            <div title="Global long/short account ratio (1h)">Global L/S</div>
+            <div title="Taker buy volume ratio (1h)">Taker Buy/Sell</div>
           </div>
-          
+
           {/* Rows */}
           {symbols.map(symbol => {
             const coin = coins?.[symbol];
-            
+
             // Default values if no data
             const defaults = {
-              'BTCUSDT': { symbol: 'BTC', retail: 65.3, top: 55.7, taker: 58.2 },
-              'ETHUSDT': { symbol: 'ETH', retail: 72.3, top: 60.2, taker: 52.1 },
-              'SOLUSDT': { symbol: 'SOL', retail: 71.8, top: 55.2, taker: 64.5 }
+              'BTCUSDT': { symbol: 'BTC', retail: 65.3, taker: 58.2 },
+              'ETHUSDT': { symbol: 'ETH', retail: 72.3, taker: 52.1 },
+              'SOLUSDT': { symbol: 'SOL', retail: 71.8, taker: 64.5 }
             };
-            
+
             const def = defaults[symbol];
-            const retailLong = coin?.retail_long_percent || def.retail;
-            const topTraderLong = coin?.top_trader_long_percent || def.top;
+            const globalLong = coin?.retail_long_percent || def.retail;
             const takerBuy = coin?.taker_buy_percent || def.taker;
             const coinSymbol = coin?.symbol || def.symbol;
-            
-            const retailBullish = retailLong >= 50;
-            const whalesBullish = topTraderLong >= 50;
-            
+
+            const globalBullish = globalLong >= 50;
+
             return (
-              <div key={symbol} className="grid grid-cols-4 gap-2 p-3 border-t border-cyber-border-subtle text-sm">
+              <div key={symbol} className="grid grid-cols-3 gap-2 p-3 border-t border-cyber-border-subtle text-sm">
                 <div className="font-semibold text-white">{coinSymbol}</div>
-                <div className={retailBullish ? 'text-green-400' : 'text-red-400'}>
-                  {retailBullish ? '🟢' : '🔴'} {retailLong.toFixed(1)}% Long
+                <div className={globalBullish ? 'text-green-400' : 'text-red-400'}>
+                  {globalBullish ? '🟢' : '🔴'} {globalLong.toFixed(1)}% Long
                 </div>
-                <div className={whalesBullish ? 'text-green-400' : 'text-red-400'}>
-                  {whalesBullish ? '🟢' : '🔴'} {topTraderLong.toFixed(1)}% Long
-                </div>
-                <div className="hidden sm:block text-cyber-text-secondary">
+                <div className="text-cyber-text-secondary">
                   {takerBuy.toFixed(1)}% Buy
                 </div>
               </div>
