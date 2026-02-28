@@ -98,7 +98,7 @@ class DerivativeSentimentFetcher:
         """Fetch taker buy/sell volume ratio from Bybit."""
         try:
             session = await self._get_session()
-            url = f"{self.BYBIT_BASE_URL}/v5/market/taker-volume"
+            url = f"{self.BYBIT_BASE_URL}/v5/market/taker-buy-sell-vol"
             params = {"category": "linear", "symbol": symbol, "period": "1h", "limit": "1"}
             async with session.get(url, params=params, timeout=10) as resp:
                 if resp.status == 200:
