@@ -95,20 +95,35 @@ class DerivativeSentimentFetcher:
         return await self.fetch_retail_long_short(symbol)
     
     async def fetch_taker_buy_sell(self, symbol: str) -> Dict[str, Any]:
-        """Fetch taker buy/sell volume ratio from Bybit."""
+        """Fetch taker buy/sell volume ratio from Bybit.
+        Requests 2 periods so we can use the last *completed* hour
+        (index 1 in DESC order) rather than the current incomplete one.
+        """
         try:
             session = await self._get_session()
             url = f"{self.BYBIT_BASE_URL}/v5/market/taker-buy-sell-vol"
-            params = {"category": "linear", "symbol": symbol, "period": "1h", "limit": "1"}
+            params = {"category": "linear", "symbol": symbol, "period": "1h", "limit": "2"}
             async with session.get(url, params=params, timeout=10) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    items = data.get("result", {}).get("list", [])
-                    if items:
-                        buy_vol = float(items[0].get("buyVolume", 0))
-                        sell_vol = float(items[0].get("sellVolume", 0))
-                        if sell_vol > 0:
-                            return {"buySellRatio": buy_vol / sell_vol}
+                if resp.status != 200:
+                    print(f"[Taker] {symbol}: HTTP {resp.status}")
+                    return {"buySellRatio": 1.0}
+                data = await resp.json()
+                ret_code = data.get("retCode", -1)
+                if ret_code != 0:
+                    print(f"[Taker] {symbol}: retCode={ret_code} msg={data.get('retMsg')}")
+                    return {"buySellRatio": 1.0}
+                items = data.get("result", {}).get("list", [])
+                # Bybit returns DESC order — index 0 = current (incomplete), index 1 = last completed
+                item = items[1] if len(items) >= 2 else (items[0] if items else None)
+                if item:
+                    buy_vol = float(item.get("buyVolume", 0))
+                    sell_vol = float(item.get("sellVolume", 0))
+                    print(f"[Taker] {symbol}: buy={buy_vol:.2f} sell={sell_vol:.2f}")
+                    total = buy_vol + sell_vol
+                    if total > 0:
+                        return {"buySellRatio": buy_vol / sell_vol if sell_vol > 0 else 99.0}
+                else:
+                    print(f"[Taker] {symbol}: empty list from Bybit")
             return {"buySellRatio": 1.0}
         except Exception as e:
             print(f"Error fetching taker ratio for {symbol}: {e}")
