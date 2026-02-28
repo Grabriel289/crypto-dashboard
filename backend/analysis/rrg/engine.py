@@ -21,6 +21,7 @@ class RRGResult:
     rs_momentum: float   # Y-axis: Acceleration Score (100-centered)
     quadrant: str
     period_return: float  # 1-month (SHORT_PERIOD) return %
+    return_6m: float      # 6-month (LONG_PERIOD) return % — used for Take Profit check
     current_price: float
 
 
@@ -64,15 +65,15 @@ class RRGEngine:
 
     def _compute_raw(
         self, closes: List[float]
-    ) -> Optional[Tuple[float, float]]:
+    ) -> Optional[Tuple[float, float, float]]:
         """
-        Compute raw momentum and acceleration for one asset.
+        Compute raw momentum, acceleration, and 6-month return for one asset.
 
         Args:
             closes: Daily closing prices, oldest first (need ≥ 127)
 
         Returns:
-            (momentum_1m_pct, acceleration_pct) or None if insufficient data
+            (momentum_1m_pct, acceleration_pct, momentum_6m_pct) or None
         """
         if len(closes) < self.min_points:
             return None
@@ -86,7 +87,7 @@ class RRGEngine:
         momentum_6m_norm = momentum_6m * (SHORT_PERIOD / LONG_PERIOD)
 
         acceleration = momentum_1m - momentum_6m_norm
-        return momentum_1m, acceleration
+        return momentum_1m, acceleration, momentum_6m
 
     # ------------------------------------------------------------------
     # Cross-sectional normalisation
@@ -125,7 +126,7 @@ class RRGEngine:
             price_data: symbol → list of daily closing prices (oldest first)
         """
         # Step 1 — raw values
-        symbols_raw: List[Tuple[str, float, float]] = []  # (symbol, mom, acc)
+        symbols_raw: List[Tuple[str, float, float, float]] = []  # (symbol, mom_1m, acc, mom_6m)
 
         for symbol in ETF_SYMBOLS:
             if ETF_SYMBOLS[symbol]["category"] == "benchmark":
@@ -134,7 +135,7 @@ class RRGEngine:
                 continue
             raw = self._compute_raw(price_data[symbol])
             if raw is not None:
-                symbols_raw.append((symbol, raw[0], raw[1]))
+                symbols_raw.append((symbol, raw[0], raw[1], raw[2]))
 
         if not symbols_raw:
             return []
@@ -148,7 +149,7 @@ class RRGEngine:
 
         # Step 3 — build results
         results: List[RRGResult] = []
-        for i, (symbol, mom, acc) in enumerate(symbols_raw):
+        for i, (symbol, mom, acc, mom_6m) in enumerate(symbols_raw):
             x = float(x_scores[i])
             y = float(y_scores[i])
             quadrant = self._determine_quadrant(x, y)
@@ -160,10 +161,11 @@ class RRGEngine:
                 name=metadata["name"],
                 category=metadata["category"],
                 color=metadata["color"],
-                rs_ratio=round(x, 2),        # Momentum Score  → x-axis
-                rs_momentum=round(y, 2),     # Acceleration Score → y-axis
+                rs_ratio=round(x, 2),         # Momentum Score  → x-axis
+                rs_momentum=round(y, 2),      # Acceleration Score → y-axis
                 quadrant=quadrant,
-                period_return=round(mom, 2), # 1-month return %
+                period_return=round(mom, 2),  # 1-month return %
+                return_6m=round(mom_6m, 2),   # 6-month return % — Take Profit check
                 current_price=closes[-1],
             ))
 
@@ -240,10 +242,11 @@ class RRGEngine:
         """
         Rank all assets by Y-score (acceleration) descending, then assign buckets:
 
-          Rank 1-3              → Buy / Add       (top picks)
-          Rank 4-6 AND Y ≥ 100 → Watch / Entry   (next candidates, still accelerating)
-          Y < 100  AND not bottom-3 → Take Profit (decelerating, not worst)
-          Bottom 3 by Y-score   → Avoid           (worst acceleration)
+          Rank 1-3                           → Buy / Add
+          Rank 4-6  AND  Y ≥ 100            → Watch / Entry
+          Y < 100   AND  not bottom-3       → Take Profit  (decelerating, not worst)
+          Bottom 3  AND  6m return > 0      → Take Profit  (profits exist — exit signal)
+          Bottom 3  AND  6m return ≤ 0      → Avoid        (already underwater)
         """
         sorted_by_accel = sorted(results, key=lambda r: r.rs_momentum, reverse=True)
         n = len(sorted_by_accel)
@@ -256,6 +259,9 @@ class RRGEngine:
             elif rank <= 6 and result.rs_momentum >= 100:
                 actions["watch"].append(result.symbol)
             elif result.rs_momentum < 100 and rank <= n - 3:
+                actions["reduce"].append(result.symbol)
+            elif result.return_6m > 0:
+                # Bottom 3 but 6-month return is still positive — profits to protect
                 actions["reduce"].append(result.symbol)
             else:
                 actions["avoid"].append(result.symbol)

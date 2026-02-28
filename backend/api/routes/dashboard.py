@@ -504,8 +504,8 @@ async def get_rrg_rotation() -> Dict[str, Any]:
         insights = engine.generate_insights(results, regime)
         
         # Separate by category
-        risk_assets = [
-            {
+        def _asset_dict(r):
+            return {
                 "symbol": r.symbol,
                 "name": r.name,
                 "category": r.category,
@@ -516,27 +516,12 @@ async def get_rrg_rotation() -> Dict[str, Any]:
                     "quadrant": r.quadrant
                 },
                 "current_price": r.current_price,
-                "period_return": r.period_return
+                "period_return": r.period_return,
+                "return_6m": r.return_6m,
             }
-            for r in results if r.category == "risk"
-        ]
-        
-        safe_haven_assets = [
-            {
-                "symbol": r.symbol,
-                "name": r.name,
-                "category": r.category,
-                "color": r.color,
-                "coordinate": {
-                    "rs_ratio": r.rs_ratio,
-                    "rs_momentum": r.rs_momentum,
-                    "quadrant": r.quadrant
-                },
-                "current_price": r.current_price,
-                "period_return": r.period_return
-            }
-            for r in results if r.category == "safe_haven"
-        ]
+
+        risk_assets = [_asset_dict(r) for r in results if r.category == "risk"]
+        safe_haven_assets = [_asset_dict(r) for r in results if r.category == "safe_haven"]
         
         await fetcher.close()
         
