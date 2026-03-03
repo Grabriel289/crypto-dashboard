@@ -13,6 +13,7 @@ import StablecoinFlow from './components/indicators/StablecoinFlow'
 import EconomicCalendar from './components/indicators/EconomicCalendar'
 import CorrelationMatrix from './components/indicators/CorrelationMatrix'
 import { RRGRotationMap } from './components/rrg'
+import ABMPanel from './components/abm'
 import Footer from './components/layout/Footer'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
@@ -133,7 +134,12 @@ function App() {
           <section className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
             <CryptoPulse data={data?.crypto_pulse} />
           </section>
-          
+
+          {/* Section: Altcoin Breadth Momentum */}
+          <section className="animate-fade-in" style={{ animationDelay: '0.37s' }}>
+            <ABMPanel data={data?.abm} />
+          </section>
+
           {/* Section 3: Sector Rotation */}
           <section className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
             <SectorRotation data={data?.sectors} />

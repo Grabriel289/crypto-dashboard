@@ -102,6 +102,14 @@ class DataScheduler:
             id='fragility_update',
             replace_existing=True
         )
+
+        # Altcoin Breadth Momentum - every 1 hour (daily data, hourly refresh)
+        self.scheduler.add_job(
+            self._update_abm,
+            IntervalTrigger(hours=1),
+            id='abm_update',
+            replace_existing=True
+        )
     
     async def _update_macro(self):
         """Update macro data."""
@@ -184,6 +192,31 @@ class DataScheduler:
             import traceback
             traceback.print_exc()
     
+    async def _update_abm(self):
+        """Update Altcoin Breadth Momentum data."""
+        try:
+            print(f"[{datetime.now()}] Updating ABM data...")
+            from analysis.abm import ABMEngine, ABMDataFetcher
+
+            fetcher = ABMDataFetcher()
+            engine = ABMEngine()
+            price_data = await fetcher.fetch_all()
+            await fetcher.close()
+
+            if price_data and "BTC" in price_data:
+                result = engine.calculate(price_data)
+                if "error" not in result:
+                    data_cache.set('abm', result)
+                    print(f"[{datetime.now()}] ABM updated: BM={result.get('bm_current')}, state={result.get('combined_state')}")
+                else:
+                    print(f"[{datetime.now()}] ABM calc error: {result.get('error')}")
+            else:
+                print(f"[{datetime.now()}] ABM: no price data available")
+        except Exception as e:
+            print(f"[{datetime.now()}] Error updating ABM: {e}")
+            import traceback
+            traceback.print_exc()
+
     def start(self):
         """Start the scheduler."""
         self.scheduler.start()
@@ -212,6 +245,10 @@ class DataScheduler:
         print(">>> Running fragility fetch (staggered 15s)...")
         await asyncio.sleep(15)
         await self._update_fragility()
+        # ABM fetches 52 klines from Binance — stagger after fragility
+        print(">>> Running ABM fetch (staggered 20s)...")
+        await asyncio.sleep(20)
+        await self._update_abm()
         print(">>> Initial data fetch complete")
 
 

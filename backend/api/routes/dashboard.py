@@ -14,6 +14,7 @@ from analysis.action_generator import generate_action_items
 from analysis.conflict_detector import detect_conflicting_signals
 from analysis.final_verdict import generate_final_verdict
 from analysis.rrg import RRGEngine, RRGDataFetcher
+from analysis.abm import ABMEngine, ABMDataFetcher
 from data.fetchers.fear_greed import fear_greed_fetcher
 from data.fetchers.binance import binance_fetcher
 from data.fetchers.cdc_levels import cdc_fetcher
@@ -402,7 +403,7 @@ async def get_correlation_matrix() -> Dict[str, Any]:
 async def get_full_dashboard() -> Dict[str, Any]:
     """Get complete dashboard data including new indicators."""
     # Fetch all data concurrently
-    macro, prices, pulse, sectors, key_levels, liquidation, stablecoin, calendar, correlation, rrg_rotation = await asyncio.gather(
+    macro, prices, pulse, sectors, key_levels, liquidation, stablecoin, calendar, correlation, rrg_rotation, abm = await asyncio.gather(
         macro_tide_scorer.calculate_full_score(),
         get_market_prices(),
         get_crypto_pulse(),
@@ -412,7 +413,8 @@ async def get_full_dashboard() -> Dict[str, Any]:
         get_stablecoin_flow(),
         get_economic_calendar(),
         get_correlation_matrix(),
-        get_rrg_rotation()
+        get_rrg_rotation(),
+        get_abm_data(),
     )
     
     # Generate actions
@@ -461,9 +463,53 @@ async def get_full_dashboard() -> Dict[str, Any]:
         "calendar": calendar,
         "correlation": correlation,
         "rrg_rotation": rrg_rotation,
+        "abm": abm,
         "final_verdict": final_verdict,
         "last_updated": datetime.now().isoformat()
     }
+
+
+@router.get("/abm")
+async def get_abm_data() -> Dict[str, Any]:
+    """
+    Get Altcoin Breadth Momentum data.
+
+    Returns:
+        - BM (Breadth Momentum 14D) time series + signal
+        - ETH/BTC ROC (7D) time series + signal
+        - Combined state (ENTRY / PEAK_WARNING / EXIT / RISING / NEUTRAL)
+        - BTC gate (PASS / FAIL)
+    """
+    from data.scheduler import data_cache
+
+    # Try scheduler cache first (updated hourly)
+    cached = data_cache.get('abm')
+    if cached and not data_cache.is_stale('abm', max_age_minutes=90):
+        return {**cached, "source": "cached", "timestamp": datetime.now().isoformat()}
+
+    # Live calculation
+    try:
+        fetcher = ABMDataFetcher()
+        engine = ABMEngine()
+
+        price_data = await fetcher.fetch_all()
+        await fetcher.close()
+
+        if not price_data or "BTC" not in price_data:
+            return {"error": "Unable to fetch price data", "timestamp": datetime.now().isoformat()}
+
+        result = engine.calculate(price_data)
+
+        if "error" not in result:
+            data_cache.set('abm', result)
+
+        return {**result, "source": "live", "timestamp": datetime.now().isoformat()}
+
+    except Exception as e:
+        print(f"[ABM] Error: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "timestamp": datetime.now().isoformat()}
 
 
 @router.get("/rrg-rotation")
