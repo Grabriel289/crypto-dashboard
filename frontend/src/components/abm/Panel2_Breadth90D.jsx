@@ -64,7 +64,7 @@ function Panel2_Breadth90D({ data, breadth90dSignal }) {
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-cyber-text-muted uppercase tracking-wider">
-          Panel 2: Altcoin Breadth (90D)
+          Altcoin Barometer
         </span>
         <span
           className="text-xs font-semibold px-2 py-0.5 rounded-full"

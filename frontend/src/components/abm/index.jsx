@@ -15,26 +15,23 @@ const STATE_COLORS = {
 const COMBINED_READING = [
   {
     key: "ENTRY",
-    title: "Entry Signal",
+    title: "Entry",
     color: "#00e676",
-    p1: "EMA(7) crosses EMA(21) upward",
-    p2: "Breadth 90D < 70%",
+    desc: "Altcoin momentum is accelerating and the market has room to grow",
     action: "Open positions",
   },
   {
     key: "PEAK_WARNING",
-    title: "Peak Warning",
+    title: "Caution",
     color: "#ff9800",
-    p1: "EMA cross still positive",
-    p2: "Breadth 90D >= 70%",
+    desc: "Most altcoins are already outperforming — the cycle may be near its peak",
     action: "Reduce / stop adding",
   },
   {
     key: "EXIT",
-    title: "Exit Signal",
+    title: "Exit",
     color: "#f4511e",
-    p1: "EMA(7) crosses EMA(21) downward",
-    p2: "Breadth 90D declining",
+    desc: "Altcoin momentum is fading — rotation back to BTC or stablecoins",
     action: "Close positions",
   },
 ];
@@ -75,8 +72,7 @@ function ABMPanel({ data }) {
           <h2 className="text-xl font-bold text-white">ALTCOIN BREADTH MOMENTUM</h2>
         </div>
         <div className="flex items-center gap-3 text-sm text-cyber-text-muted">
-          <span>Breadth 30D: <span className="text-white font-mono">{breadth_30d?.toFixed(1) ?? "--"}%</span></span>
-          <span>{outperform_count ?? "--"}/{valid_count ?? "--"} coins</span>
+          <span>{outperform_count ?? "--"}/{valid_count ?? "--"} coins tracked</span>
         </div>
       </div>
 
@@ -113,11 +109,8 @@ function ABMPanel({ data }) {
                 {item.title}
                 {isActive && <span className="ml-1 text-xs opacity-70">(ACTIVE)</span>}
               </div>
-              <div className="text-xs text-cyber-text-secondary mb-1">
-                P1: {item.p1}
-              </div>
               <div className="text-xs text-cyber-text-secondary mb-2">
-                P2: {item.p2}
+                {item.desc}
               </div>
               <div className="text-xs font-semibold" style={{ color: item.color }}>
                 Action: {item.action}
@@ -130,7 +123,7 @@ function ABMPanel({ data }) {
       {/* Footer */}
       <div className="mt-4 pt-3 border-t border-cyber-border-subtle">
         <p className="text-sm text-cyber-text-muted text-center">
-          BM = EMA 7/21 crossover of 30D breadth | Breadth 90D = % altcoins outperforming BTC over 90 days | Peak at 70% | Updated hourly
+          BM = Altcoin momentum signal | Breadth 90D = % of altcoins outperforming BTC | Updated hourly
         </p>
       </div>
     </section>

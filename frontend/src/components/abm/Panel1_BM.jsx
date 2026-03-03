@@ -27,7 +27,7 @@ function CustomTooltip({ active, payload }) {
     <div className="rounded-lg px-3 py-2 text-sm" style={{ background: "#0f1420", border: "1px solid rgba(255,255,255,0.1)" }}>
       <div className="text-cyber-text-muted mb-1">{d.date}</div>
       <div className="font-mono font-bold" style={{ color: d.bm >= 0 ? "#00e676" : "#f4511e" }}>
-        EMA Cross: {d.bm >= 0 ? "+" : ""}{d.bm.toFixed(2)}
+        BM: {d.bm >= 0 ? "+" : ""}{d.bm.toFixed(2)}
       </div>
     </div>
   );
@@ -60,7 +60,7 @@ function Panel1_BM({ data, bmSignal }) {
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm text-cyber-text-muted uppercase tracking-wider">
-          Panel 1: BM Signal (EMA 7/21)
+          Leading Signal
         </span>
         <span
           className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -102,9 +102,8 @@ function Panel1_BM({ data, bmSignal }) {
 
           <Tooltip content={<CustomTooltip />} />
 
-          {/* Zero line — the EMA crossover level */}
-          <ReferenceLine y={0} stroke="rgba(255,255,255,0.4)" strokeWidth={1.5}
-            label={{ value: "EMA Cross", position: "right", fill: "rgba(255,255,255,0.5)", fontSize: 11 }} />
+          {/* Zero line */}
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.4)" strokeWidth={1.5} />
 
           {/* Area fill */}
           <Area
