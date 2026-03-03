@@ -2,7 +2,7 @@ import React from 'react';
 import { TrendingUp } from 'lucide-react';
 import ReadingBar from './ReadingBar';
 import Panel1_BM from './Panel1_BM';
-import Panel2_ETH from './Panel2_ETH';
+import Panel2_Breadth90D from './Panel2_Breadth90D';
 
 const STATE_COLORS = {
   ENTRY:        { color: "#00e676", border: "rgba(0,230,118,0.35)" },
@@ -18,7 +18,7 @@ const COMBINED_READING = [
     title: "Entry Signal",
     color: "#00e676",
     p1: "EMA(7) crosses EMA(21) upward",
-    p2: "ETH/BTC ROC 14D > 0",
+    p2: "Breadth 90D < 70%",
     action: "Open positions",
   },
   {
@@ -26,7 +26,7 @@ const COMBINED_READING = [
     title: "Peak Warning",
     color: "#ff9800",
     p1: "EMA cross still positive",
-    p2: "ETH/BTC ROC 14D crosses 0 downward",
+    p2: "Breadth 90D >= 70%",
     action: "Reduce / stop adding",
   },
   {
@@ -34,7 +34,7 @@ const COMBINED_READING = [
     title: "Exit Signal",
     color: "#f4511e",
     p1: "EMA(7) crosses EMA(21) downward",
-    p2: "ETH/BTC ROC 14D < -3%",
+    p2: "Breadth 90D declining",
     action: "Close positions",
   },
 ];
@@ -56,9 +56,9 @@ function ABMPanel({ data }) {
 
   const {
     bm_series, bm_current,
-    eth_roc_series, eth_roc_current,
+    breadth_90d_series, breadth_90d_current,
     breadth_30d, valid_count, outperform_count,
-    btc_gate, combined_state, bm_signal, eth_roc_signal,
+    btc_gate, combined_state, bm_signal, breadth_90d_signal,
   } = data;
 
   const stateColors = STATE_COLORS[combined_state] || STATE_COLORS.NEUTRAL;
@@ -75,7 +75,7 @@ function ABMPanel({ data }) {
           <h2 className="text-xl font-bold text-white">ALTCOIN BREADTH MOMENTUM</h2>
         </div>
         <div className="flex items-center gap-3 text-sm text-cyber-text-muted">
-          <span>Breadth: <span className="text-white font-mono">{breadth_30d?.toFixed(1) ?? "--"}%</span></span>
+          <span>Breadth 30D: <span className="text-white font-mono">{breadth_30d?.toFixed(1) ?? "--"}%</span></span>
           <span>{outperform_count ?? "--"}/{valid_count ?? "--"} coins</span>
         </div>
       </div>
@@ -83,9 +83,9 @@ function ABMPanel({ data }) {
       {/* ReadingBar — current signal summary */}
       <ReadingBar
         bmCurrent={bm_current}
-        ethRocCurrent={eth_roc_current}
+        breadth90dCurrent={breadth_90d_current}
         bmSignal={bm_signal}
-        ethRocSignal={eth_roc_signal}
+        breadth90dSignal={breadth_90d_signal}
         btcGate={btc_gate}
         combinedState={combined_state}
       />
@@ -93,8 +93,8 @@ function ABMPanel({ data }) {
       {/* Panel 1: BM Signal Chart */}
       <Panel1_BM data={bm_series} bmSignal={bm_signal} />
 
-      {/* Panel 2: ETH/BTC ROC Chart */}
-      <Panel2_ETH data={eth_roc_series} ethRocSignal={eth_roc_signal} />
+      {/* Panel 2: Altcoin Breadth 90D Chart */}
+      <Panel2_Breadth90D data={breadth_90d_series} breadth90dSignal={breadth_90d_signal} />
 
       {/* Combined Reading — 3 columns */}
       <div className="grid grid-cols-3 gap-3 mt-2">
@@ -130,7 +130,7 @@ function ABMPanel({ data }) {
       {/* Footer */}
       <div className="mt-4 pt-3 border-t border-cyber-border-subtle">
         <p className="text-sm text-cyber-text-muted text-center">
-          BM = Breadth Momentum (EMA 7/21 crossover of 30D altcoin outperformance vs BTC) | ETH/BTC ROC = 14D rate of change | Updated hourly
+          BM = EMA 7/21 crossover of 30D breadth | Breadth 90D = % altcoins outperforming BTC over 90 days | Peak at 70% | Updated hourly
         </p>
       </div>
     </section>

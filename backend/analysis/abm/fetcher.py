@@ -6,7 +6,7 @@ from datetime import datetime
 
 from .constants import (
     ABM_UNIVERSE, BTC_SYMBOL, KLINE_LIMIT,
-    BINANCE_SPOT_URL, OKX_URL, CACHE_TTL,
+    BINANCE_SPOT_URL, OKX_URL, BYBIT_URL, CACHE_TTL,
 )
 
 
@@ -90,12 +90,43 @@ class ABMDataFetcher:
             print(f"[ABM] OKX kline error {symbol}: {e}")
             return None
 
+    async def _fetch_bybit_klines(
+        self, symbol: str, limit: int = KLINE_LIMIT
+    ) -> Optional[List[Dict]]:
+        """Fetch daily klines from Bybit. Returns list of {date, close} oldest-first."""
+        session = await self._get_session()
+        url = f"{BYBIT_URL}/v5/market/kline"
+        params = {"category": "spot", "symbol": symbol, "interval": "D", "limit": str(limit)}
+
+        try:
+            async with session.get(url, params=params, timeout=15) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                if data.get("retCode") != 0:
+                    return None
+                candles = data.get("result", {}).get("list", [])
+                if not candles:
+                    return None
+                # Bybit returns newest first — reverse to oldest-first
+                candles.reverse()
+                return [
+                    {
+                        "date": datetime.utcfromtimestamp(int(c[0]) / 1000).strftime("%Y-%m-%d"),
+                        "close": float(c[4]),
+                    }
+                    for c in candles
+                ]
+        except Exception as e:
+            print(f"[ABM] Bybit kline error {symbol}: {e}")
+            return None
+
     # ------------------------------------------------------------------
     # Single-coin fetch with exchange fallback
     # ------------------------------------------------------------------
 
     async def _fetch_coin(self, coin: str, mapping: Dict) -> Optional[List[Dict]]:
-        """Fetch klines for one coin, trying Binance then OKX."""
+        """Fetch klines for one coin, trying Binance → OKX → Bybit."""
         cache_key = coin
         if cache_key in self._cache:
             ts, cached = self._cache[cache_key]
@@ -114,6 +145,14 @@ class ABMDataFetcher:
         okx_sym = mapping.get("okx")
         if okx_sym:
             result = await self._fetch_okx_klines(okx_sym)
+            if result and len(result) >= 30:
+                self._cache[cache_key] = (datetime.now(), result)
+                return result
+
+        # Fallback to Bybit
+        bybit_sym = mapping.get("bybit")
+        if bybit_sym:
+            result = await self._fetch_bybit_klines(bybit_sym)
             if result and len(result) >= 30:
                 self._cache[cache_key] = (datetime.now(), result)
                 return result

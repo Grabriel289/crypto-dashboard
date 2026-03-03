@@ -8,22 +8,27 @@ const STATE_COLORS = {
   NEUTRAL:      { color: "#90a4ae", label: "NEUTRAL" },
 };
 
-const ETH_ROC_LABELS = {
-  STRONG:   { color: "#00e676", label: "STRONG" },
-  POSITIVE: { color: "#00bcd4", label: "POSITIVE" },
-  WARNING:  { color: "#ff9800", label: "WARNING" },
-  BEARISH:  { color: "#f4511e", label: "BEARISH" },
+const BREADTH_90D_LABELS = {
+  PEAK:     { color: "#ff9800", label: "PEAK" },
+  HIGH:     { color: "#00e676", label: "HIGH" },
+  MODERATE: { color: "#00bcd4", label: "MODERATE" },
+  LOW:      { color: "#90a4ae", label: "LOW" },
 };
 
-function ReadingBar({ bmCurrent, ethRocCurrent, bmSignal, ethRocSignal, btcGate, combinedState }) {
+function ReadingBar({ bmCurrent, breadth90dCurrent, bmSignal, breadth90dSignal, btcGate, combinedState }) {
   const stateInfo = STATE_COLORS[combinedState] || STATE_COLORS.NEUTRAL;
-  const ethInfo = ETH_ROC_LABELS[ethRocSignal] || ETH_ROC_LABELS.POSITIVE;
+  const breadthInfo = BREADTH_90D_LABELS[breadth90dSignal] || BREADTH_90D_LABELS.MODERATE;
   const gatePassed = btcGate === "PASS";
 
-  const formatValue = (val) => {
+  const formatBm = (val) => {
     if (val == null) return "--";
     const sign = val >= 0 ? "+" : "";
     return `${sign}${val.toFixed(1)}%`;
+  };
+
+  const formatBreadth = (val) => {
+    if (val == null) return "--";
+    return `${val.toFixed(1)}%`;
   };
 
   return (
@@ -41,7 +46,7 @@ function ReadingBar({ bmCurrent, ethRocCurrent, bmSignal, ethRocSignal, btcGate,
       <div className="flex items-center gap-2">
         <span className="text-sm text-cyber-text-muted">BM Signal:</span>
         <span className="text-base font-bold font-mono" style={{ color: stateInfo.color }}>
-          {formatValue(bmCurrent)}
+          {formatBm(bmCurrent)}
         </span>
         <span
           className="text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -58,21 +63,21 @@ function ReadingBar({ bmCurrent, ethRocCurrent, bmSignal, ethRocSignal, btcGate,
       {/* Divider */}
       <div className="hidden md:block w-px h-5" style={{ background: "rgba(255,255,255,0.1)" }} />
 
-      {/* ETH/BTC ROC */}
+      {/* Breadth 90D */}
       <div className="flex items-center gap-2">
-        <span className="text-sm text-cyber-text-muted">ETH/BTC ROC:</span>
-        <span className="text-base font-bold font-mono" style={{ color: ethInfo.color }}>
-          {formatValue(ethRocCurrent)}
+        <span className="text-sm text-cyber-text-muted">Breadth 90D:</span>
+        <span className="text-base font-bold font-mono" style={{ color: breadthInfo.color }}>
+          {formatBreadth(breadth90dCurrent)}
         </span>
         <span
           className="text-xs font-semibold px-2 py-0.5 rounded-full"
           style={{
-            color: ethInfo.color,
-            background: ethInfo.color + "18",
-            border: `1px solid ${ethInfo.color}44`,
+            color: breadthInfo.color,
+            background: breadthInfo.color + "18",
+            border: `1px solid ${breadthInfo.color}44`,
           }}
         >
-          {ethInfo.label}
+          {breadthInfo.label}
         </span>
       </div>
 

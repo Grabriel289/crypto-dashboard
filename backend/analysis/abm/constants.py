@@ -1,10 +1,11 @@
 """Altcoin Breadth Momentum (ABM) constants and universe definition."""
 
 # ---------------------------------------------------------------------------
-# Signal thresholds
+# Signal thresholds — Breadth 90D (Panel 2: peak warning)
 # ---------------------------------------------------------------------------
-ETH_ROC_WARN = 0            # ROC crosses 0 downward → Peak Warning
-ETH_ROC_BEAR = -3           # ROC < -3% → Bearish confirmation
+BREADTH_PEAK_THRESHOLD = 70  # Breadth 90D > 70% → alt season peak
+BREADTH_HIGH = 50            # Breadth 90D > 50% → strong alt season
+BREADTH_LOW = 30             # Breadth 90D <= 30% → BTC dominant
 
 # ---------------------------------------------------------------------------
 # BM method: EMA crossover (validated via backtest — best noise/lead ratio)
@@ -13,13 +14,13 @@ EMA_FAST = 7                 # Fast EMA span on breadth series
 EMA_SLOW = 21                # Slow EMA span on breadth series
 
 # ---------------------------------------------------------------------------
-# Lookback periods (trading days)
+# Lookback periods (calendar days)
 # ---------------------------------------------------------------------------
-BREADTH_LOOKBACK = 30        # 30-day return window for breadth calc
-ETH_ROC_LOOKBACK = 14        # 14-day ETH/BTC rate of change (backtest: less noise than 7D)
+BREADTH_LOOKBACK = 30        # 30-day return window for Panel 1 breadth
+BREADTH_LONG_LOOKBACK = 90   # 90-day return window for Panel 2 breadth
 
-# We need BREADTH_LOOKBACK days for breadth + enough for EMA to converge.
-KLINE_LIMIT = 120            # ~120 calendar days of daily klines
+# Need 90D lookback + enough history for EMA convergence + chart buffer.
+KLINE_LIMIT = 200            # ~200 calendar days of daily klines
 
 # ---------------------------------------------------------------------------
 # Data quality
@@ -29,8 +30,9 @@ MIN_VALID_COUNT = 10         # Skip day if fewer than 10 coins have data
 # ---------------------------------------------------------------------------
 # 50-Altcoin Universe (ex-BTC, ex-stablecoins, ex-wrapped)
 #
-# Each entry: coin → { "binance": ticker | None, "okx": ticker | None }
-# None means the coin is not available on that exchange.
+# Each entry: coin → { "binance": ticker | None, "okx": ticker | None, "bybit": ticker | None }
+# None (or absent) means the coin is not available on that exchange.
+# Fallback order: Binance → OKX → Bybit
 # ---------------------------------------------------------------------------
 ABM_UNIVERSE = {
     # Tier A — long history (2017+)
@@ -82,22 +84,23 @@ ABM_UNIVERSE = {
     # Tier D — 2024+ (limited history)
     "WLFI":  {"binance": None,        "okx": None},             # Very new, may fail
     "PUMP":  {"binance": None,        "okx": "PUMP-USDT"},
-    "VIRTUAL": {"binance": None,      "okx": "VIRTUAL-USDT"},
+    "VIRTUAL": {"binance": "VIRTUALUSDT", "okx": "VIRTUAL-USDT"},
     "PENGU": {"binance": "PENGUUSDT", "okx": "PENGU-USDT"},
     "ETHFI": {"binance": "ETHFIUSDT", "okx": "ETHFI-USDT"},
     "LIT":   {"binance": None,        "okx": "LIT-USDT"},
     "AERO":  {"binance": "AEROUSDT",  "okx": None},
     "SPX":   {"binance": None,        "okx": None},             # Very new, may fail
     "IP":    {"binance": "IPUSDT",    "okx": "IP-USDT"},
-    "MON":   {"binance": "MONUSDT",   "okx": "MON-USDT"},       # Confirmed on Binance
+    "MON":   {"binance": None,        "okx": None, "bybit": "MONUSDT"},  # Bybit API
 }
 
 # BTC is the benchmark — fetched separately
 BTC_SYMBOL = {"binance": "BTCUSDT", "okx": "BTC-USDT"}
 
-# Binance / OKX base URLs
+# Binance / OKX / Bybit base URLs
 BINANCE_SPOT_URL = "https://api.binance.com"
 OKX_URL = "https://www.okx.com"
+BYBIT_URL = "https://api.bybit.com"
 
 # Cache TTL in seconds (30 minutes — daily data, no need for frequent refresh)
 CACHE_TTL = 1800
