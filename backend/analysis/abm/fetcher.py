@@ -6,7 +6,7 @@ from datetime import datetime
 
 from .constants import (
     ABM_UNIVERSE, BTC_SYMBOL, KLINE_LIMIT,
-    BINANCE_SPOT_URL, OKX_URL, BYBIT_URL, CACHE_TTL,
+    BINANCE_SPOT_URL, OKX_URL, BYBIT_URL, KUCOIN_URL, CACHE_TTL,
 )
 
 
@@ -121,12 +121,45 @@ class ABMDataFetcher:
             print(f"[ABM] Bybit kline error {symbol}: {e}")
             return None
 
+    async def _fetch_kucoin_klines(
+        self, symbol: str, limit: int = KLINE_LIMIT
+    ) -> Optional[List[Dict]]:
+        """Fetch daily klines from KuCoin. Returns list of {date, close} oldest-first."""
+        session = await self._get_session()
+        url = f"{KUCOIN_URL}/api/v1/market/candles"
+        now = int(datetime.now().timestamp())
+        start = now - limit * 86400
+        params = {"type": "1day", "symbol": symbol, "startAt": str(start), "endAt": str(now)}
+
+        try:
+            async with session.get(url, params=params, timeout=15) as resp:
+                if resp.status != 200:
+                    return None
+                data = await resp.json()
+                if data.get("code") != "200000":
+                    return None
+                candles = data.get("data", [])
+                if not candles:
+                    return None
+                # KuCoin returns newest first — reverse to oldest-first
+                candles.reverse()
+                return [
+                    {
+                        "date": datetime.utcfromtimestamp(int(c[0])).strftime("%Y-%m-%d"),
+                        "close": float(c[2]),  # KuCoin: [time, open, close, high, low, vol, turnover]
+                    }
+                    for c in candles
+                ]
+        except Exception as e:
+            print(f"[ABM] KuCoin kline error {symbol}: {e}")
+            return None
+
     # ------------------------------------------------------------------
     # Single-coin fetch with exchange fallback
     # ------------------------------------------------------------------
 
     async def _fetch_coin(self, coin: str, mapping: Dict) -> Optional[List[Dict]]:
-        """Fetch klines for one coin, trying Binance → OKX → Bybit."""
+        """Fetch klines for one coin, trying Binance → OKX → Bybit → KuCoin."""
         cache_key = coin
         if cache_key in self._cache:
             ts, cached = self._cache[cache_key]
@@ -153,6 +186,14 @@ class ABMDataFetcher:
         bybit_sym = mapping.get("bybit")
         if bybit_sym:
             result = await self._fetch_bybit_klines(bybit_sym)
+            if result and len(result) >= 30:
+                self._cache[cache_key] = (datetime.now(), result)
+                return result
+
+        # Fallback to KuCoin
+        kucoin_sym = mapping.get("kucoin")
+        if kucoin_sym:
+            result = await self._fetch_kucoin_klines(kucoin_sym)
             if result and len(result) >= 30:
                 self._cache[cache_key] = (datetime.now(), result)
                 return result
