@@ -35,16 +35,16 @@ function ReadingBar({ bmCurrent, ethRocCurrent, bmSignal, ethRocSignal, btcGate,
       }}
     >
       {/* Label */}
-      <span className="text-xs font-semibold text-cyber-text-muted uppercase tracking-wider">NOW</span>
+      <span className="text-sm font-semibold text-cyber-text-muted uppercase tracking-wider">NOW</span>
 
       {/* BM Signal */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-cyber-text-muted">BM Signal:</span>
-        <span className="text-sm font-bold font-mono" style={{ color: stateInfo.color }}>
+        <span className="text-sm text-cyber-text-muted">BM Signal:</span>
+        <span className="text-base font-bold font-mono" style={{ color: stateInfo.color }}>
           {formatValue(bmCurrent)}
         </span>
         <span
-          className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
           style={{
             color: stateInfo.color,
             background: stateInfo.color + "18",
@@ -60,12 +60,12 @@ function ReadingBar({ bmCurrent, ethRocCurrent, bmSignal, ethRocSignal, btcGate,
 
       {/* ETH/BTC ROC */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-cyber-text-muted">ETH/BTC ROC:</span>
-        <span className="text-sm font-bold font-mono" style={{ color: ethInfo.color }}>
+        <span className="text-sm text-cyber-text-muted">ETH/BTC ROC:</span>
+        <span className="text-base font-bold font-mono" style={{ color: ethInfo.color }}>
           {formatValue(ethRocCurrent)}
         </span>
         <span
-          className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
           style={{
             color: ethInfo.color,
             background: ethInfo.color + "18",
@@ -81,9 +81,9 @@ function ReadingBar({ bmCurrent, ethRocCurrent, bmSignal, ethRocSignal, btcGate,
 
       {/* BTC Gate */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-cyber-text-muted">BTC Gate:</span>
+        <span className="text-sm text-cyber-text-muted">BTC Gate:</span>
         <span
-          className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
           style={{
             color: gatePassed ? "#00e676" : "#f4511e",
             background: gatePassed ? "rgba(0,230,118,0.1)" : "rgba(244,81,30,0.1)",

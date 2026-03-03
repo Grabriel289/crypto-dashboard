@@ -14,7 +14,7 @@ function PeakWarningDot({ cx, cy, payload, index }) {
     return (
       <g>
         <circle cx={cx} cy={cy} r={6} fill="#ff9800" stroke="#0f1420" strokeWidth={2} />
-        <text x={cx - 28} y={cy - 12} fill="#ff9800" fontSize={9} fontWeight="bold">
+        <text x={cx - 28} y={cy - 12} fill="#ff9800" fontSize={11} fontWeight="bold">
           PEAK
         </text>
       </g>
@@ -27,7 +27,7 @@ function CustomTooltip({ active, payload }) {
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-lg px-3 py-2 text-xs" style={{ background: "#0f1420", border: "1px solid rgba(255,255,255,0.1)" }}>
+    <div className="rounded-lg px-3 py-2 text-sm" style={{ background: "#0f1420", border: "1px solid rgba(255,255,255,0.1)" }}>
       <div className="text-cyber-text-muted mb-1">{d.date}</div>
       <div className="font-mono font-bold" style={{ color: d.roc >= 0 ? "#00bcd4" : "#ff9800" }}>
         ETH/BTC ROC: {d.roc >= 0 ? "+" : ""}{d.roc.toFixed(2)}%
@@ -63,11 +63,11 @@ function Panel2_ETH({ data, ethRocSignal }) {
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-cyber-text-muted uppercase tracking-wider">
-          Panel 2: ETH/BTC ROC (7D)
+        <span className="text-sm text-cyber-text-muted uppercase tracking-wider">
+          Panel 2: ETH/BTC ROC (14D)
         </span>
         <span
-          className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
           style={{
             color: signalColor,
             background: signalColor + "18",
@@ -91,14 +91,14 @@ function Panel2_ETH({ data, ethRocSignal }) {
 
           <XAxis
             dataKey="date"
-            tick={{ fill: "#546e7a", fontSize: 9 }}
+            tick={{ fill: "#546e7a", fontSize: 11 }}
             ticks={ticks}
             axisLine={{ stroke: "rgba(84,110,122,0.3)" }}
             tickLine={false}
           />
           <YAxis
-            domain={[-8, 8]}
-            tick={{ fill: "#546e7a", fontSize: 9 }}
+            domain={[-12, 12]}
+            tick={{ fill: "#546e7a", fontSize: 11 }}
             tickFormatter={(v) => `${v > 0 ? "+" : ""}${v}%`}
             axisLine={false}
             tickLine={false}
@@ -108,10 +108,10 @@ function Panel2_ETH({ data, ethRocSignal }) {
 
           {/* Reference lines */}
           <ReferenceLine y={3} stroke="#00e676" strokeDasharray="5 5"
-            label={{ value: "Strong +3%", position: "right", fill: "#00e676", fontSize: 9 }} />
+            label={{ value: "Strong +3%", position: "right", fill: "#00e676", fontSize: 11 }} />
           <ReferenceLine y={0} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
           <ReferenceLine y={-3} stroke="#ff9800" strokeDasharray="5 5"
-            label={{ value: "Warn -3%", position: "right", fill: "#ff9800", fontSize: 9 }} />
+            label={{ value: "Warn -3%", position: "right", fill: "#ff9800", fontSize: 11 }} />
 
           {/* Area fill */}
           <Area

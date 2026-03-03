@@ -3,21 +3,23 @@
 # ---------------------------------------------------------------------------
 # Signal thresholds
 # ---------------------------------------------------------------------------
-BM_ENTRY_THRESHOLD = 5      # BM crosses +5% upward  → Entry
-BM_EXIT_THRESHOLD = -5      # BM crosses -5% downward → Exit
 ETH_ROC_WARN = 0            # ROC crosses 0 downward → Peak Warning
 ETH_ROC_BEAR = -3           # ROC < -3% → Bearish confirmation
+
+# ---------------------------------------------------------------------------
+# BM method: EMA crossover (validated via backtest — best noise/lead ratio)
+# ---------------------------------------------------------------------------
+EMA_FAST = 7                 # Fast EMA span on breadth series
+EMA_SLOW = 21                # Slow EMA span on breadth series
 
 # ---------------------------------------------------------------------------
 # Lookback periods (trading days)
 # ---------------------------------------------------------------------------
 BREADTH_LOOKBACK = 30        # 30-day return window for breadth calc
-BM_LOOKBACK = 14             # 14-day momentum of breadth
-ETH_ROC_LOOKBACK = 7         # 7-day ETH/BTC rate of change
+ETH_ROC_LOOKBACK = 14        # 14-day ETH/BTC rate of change (backtest: less noise than 7D)
 
-# We need at least BREADTH_LOOKBACK + BM_LOOKBACK days of closes
-# to produce one BM data point.  Fetch extra for a reasonable time series.
-KLINE_LIMIT = 90             # ~90 calendar days of daily klines
+# We need BREADTH_LOOKBACK days for breadth + enough for EMA to converge.
+KLINE_LIMIT = 120            # ~120 calendar days of daily klines
 
 # ---------------------------------------------------------------------------
 # Data quality

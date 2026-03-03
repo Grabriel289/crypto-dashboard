@@ -4,21 +4,17 @@ import {
   ReferenceLine, Area, Line, ResponsiveContainer,
 } from 'recharts';
 
-const BM_ENTRY = 5;
-const BM_EXIT = -5;
-
 function BMSignalDot({ cx, cy, payload, index }) {
   if (index < 1 || !cx || !cy) return null;
-  // We rely on the data array's prev value being passed via payload._prev
   const prevBm = payload._prev;
   if (prevBm == null) return null;
 
-  // Entry: crosses +5 upward
-  if (prevBm < BM_ENTRY && payload.bm >= BM_ENTRY) {
+  // Entry: EMA cross goes positive (crosses 0 upward)
+  if (prevBm <= 0 && payload.bm > 0) {
     return <circle cx={cx} cy={cy} r={5} fill="#00e676" stroke="#0f1420" strokeWidth={2} />;
   }
-  // Exit: crosses -5 downward
-  if (prevBm > BM_EXIT && payload.bm <= BM_EXIT) {
+  // Exit: EMA cross goes negative (crosses 0 downward)
+  if (prevBm >= 0 && payload.bm < 0) {
     return <circle cx={cx} cy={cy} r={5} fill="#f4511e" stroke="#0f1420" strokeWidth={2} />;
   }
   return null;
@@ -28,10 +24,10 @@ function CustomTooltip({ active, payload }) {
   if (!active || !payload?.[0]) return null;
   const d = payload[0].payload;
   return (
-    <div className="rounded-lg px-3 py-2 text-xs" style={{ background: "#0f1420", border: "1px solid rgba(255,255,255,0.1)" }}>
+    <div className="rounded-lg px-3 py-2 text-sm" style={{ background: "#0f1420", border: "1px solid rgba(255,255,255,0.1)" }}>
       <div className="text-cyber-text-muted mb-1">{d.date}</div>
       <div className="font-mono font-bold" style={{ color: d.bm >= 0 ? "#00e676" : "#f4511e" }}>
-        BM: {d.bm >= 0 ? "+" : ""}{d.bm.toFixed(2)}%
+        EMA Cross: {d.bm >= 0 ? "+" : ""}{d.bm.toFixed(2)}
       </div>
     </div>
   );
@@ -63,11 +59,11 @@ function Panel1_BM({ data, bmSignal }) {
   return (
     <div className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-cyber-text-muted uppercase tracking-wider">
-          Panel 1: BM Signal (14D MoM)
+        <span className="text-sm text-cyber-text-muted uppercase tracking-wider">
+          Panel 1: BM Signal (EMA 7/21)
         </span>
         <span
-          className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+          className="text-xs font-semibold px-2 py-0.5 rounded-full"
           style={{
             color: signalColor,
             background: signalColor + "18",
@@ -91,27 +87,24 @@ function Panel1_BM({ data, bmSignal }) {
 
           <XAxis
             dataKey="date"
-            tick={{ fill: "#546e7a", fontSize: 9 }}
+            tick={{ fill: "#546e7a", fontSize: 11 }}
             ticks={ticks}
             axisLine={{ stroke: "rgba(84,110,122,0.3)" }}
             tickLine={false}
           />
           <YAxis
-            domain={[-15, 15]}
-            tick={{ fill: "#546e7a", fontSize: 9 }}
-            tickFormatter={(v) => `${v > 0 ? "+" : ""}${v}%`}
+            domain={[-20, 20]}
+            tick={{ fill: "#546e7a", fontSize: 11 }}
+            tickFormatter={(v) => `${v > 0 ? "+" : ""}${v}`}
             axisLine={false}
             tickLine={false}
           />
 
           <Tooltip content={<CustomTooltip />} />
 
-          {/* Reference lines */}
-          <ReferenceLine y={BM_ENTRY} stroke="#00e676" strokeDasharray="5 5"
-            label={{ value: "Entry +5%", position: "right", fill: "#00e676", fontSize: 9 }} />
-          <ReferenceLine y={0} stroke="rgba(255,255,255,0.3)" strokeWidth={1} />
-          <ReferenceLine y={BM_EXIT} stroke="#f4511e" strokeDasharray="5 5"
-            label={{ value: "Exit -5%", position: "right", fill: "#f4511e", fontSize: 9 }} />
+          {/* Zero line — the EMA crossover level */}
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.4)" strokeWidth={1.5}
+            label={{ value: "EMA Cross", position: "right", fill: "rgba(255,255,255,0.5)", fontSize: 11 }} />
 
           {/* Area fill */}
           <Area
