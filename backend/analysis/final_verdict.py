@@ -18,40 +18,47 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
     crypto_pulse = data.get("crypto_pulse", {})
     sectors = data.get("sectors", {})
     calendar = data.get("calendar", {})
-    
+    abm = data.get("abm", {})
+
     # Get individual values
     macro_score = macro.get("adjusted_score", 2.5)
-    
+
     # Get CDC signal
     btc_data = key_levels.get("btc", {})
     cdc_signal = btc_data.get("cdc_signal", {}).get("signal", "NEUTRAL")
     btc_s1 = btc_data.get("levels", {}).get("s1", 65000)
-    
+
     # Get Fear & Greed
     fear_greed = crypto_pulse.get("fear_greed", {}).get("value", 50)
-    
+
     # Get Whale signal
     whale = crypto_pulse.get("whale", {})
     whale_signal = whale.get("signal", "NEUTRAL")
-    
+
     # Get best sector
     sector_list = sectors.get("sectors", [])
     best_sector = None
     if sector_list:
-        best_sector = max(sector_list, key=lambda s: s.get("avg_return_7d", 0))
-    
+        best_sector = max(sector_list, key=lambda s: s.get("avg_return_14d", 0))
+
     # Get key event
     key_event = calendar.get("key_event")
-    
+
     # Count capitulating sectors
-    capitulating_count = sum(1 for s in sector_list if s.get("avg_return_7d", 0) < -10)
+    capitulating_count = sum(1 for s in sector_list if s.get("avg_return_14d", 0) < -10)
+
+    # Get Altcoin Season Index signals
+    abm_combined = abm.get("combined_state", "NEUTRAL")
+    abm_bm_signal = abm.get("bm_signal", "NEUTRAL")
+    breadth_90d = abm.get("breadth_90d_current", 0)
+    breadth_90d_signal = abm.get("breadth_90d_signal", "LOW")
     
     # ═══════════════════════════════════════════════════════════════
     # DETERMINE STANCE
     # ═══════════════════════════════════════════════════════════════
     
     stance = None
-    
+
     # AGGRESSIVE: All green lights
     if macro_score >= 4 and cdc_signal == "BULLISH" and fear_greed < 30:
         stance = {
@@ -61,8 +68,8 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
             "bgColor": "rgba(0, 255, 136, 0.1)",
             "borderColor": "#00ff88"
         }
-    # RISK-OFF: Macro very weak
-    elif macro_score < 2:
+    # RISK-OFF: Macro very weak OR ABM exit + bearish CDC
+    elif macro_score < 2 or (abm_combined == "EXIT" and cdc_signal == "BEARISH"):
         stance = {
             "text": "RISK-OFF / WAIT",
             "color": "red",
@@ -104,13 +111,21 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
         do_list.append(f"Set limit orders at S1 (${btc_s1:,.0f})")
     
     # Best sector outperforming
-    if best_sector and best_sector.get("avg_vs_btc_7d", 0) > 0:
+    if best_sector and best_sector.get("avg_vs_btc_14d", 0) > 0:
         do_list.append(f"Focus: BTC > {best_sector.get('sector', 'Best')}")
     
     # Bullish = scale in
     if cdc_signal == "BULLISH" and macro_score >= 3:
         do_list.append("Scale into positions")
-    
+
+    # ABM: Alt season entry signal
+    if abm_combined == "ENTRY":
+        do_list.append("Rotate into alts - alt season entry active")
+    elif abm_combined == "PEAK_WARNING":
+        do_list.append("Take partial profits on alts - breadth at peak")
+    elif abm_combined == "EXIT":
+        do_list.append("Reduce altcoin exposure - exit signal")
+
     # Default if empty
     if not do_list:
         do_list.append("Monitor and wait for clarity")
@@ -136,7 +151,13 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
     # Extreme greed = don't FOMO
     if fear_greed >= 80:
         dont_list.append("FOMO into pumps")
-    
+
+    # ABM: Peak warning = don't go heavy alts
+    if abm_combined == "PEAK_WARNING":
+        dont_list.append("Go heavy into alts - overheated")
+    elif abm_combined == "EXIT":
+        dont_list.append("Chase altcoin pumps")
+
     # Default if empty
     if not dont_list:
         dont_list.append("Overleverage")
@@ -165,6 +186,12 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
     # CDC bullish but neutral = wait for confirmation
     if cdc_signal == "NEUTRAL":
         wait_for.append("CDC Signal confirmation")
+
+    # ABM: Wait for alt season signals
+    if abm_combined == "EXIT" or abm_bm_signal == "FALLING":
+        wait_for.append("Alt Season ENTRY signal")
+    elif abm_combined == "PEAK_WARNING":
+        wait_for.append("Breadth 90D < 70%")
     
     # ═══════════════════════════════════════════════════════════════
     # RETURN RESULT

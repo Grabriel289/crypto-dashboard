@@ -26,12 +26,12 @@ async def get_sectors() -> Dict[str, Any]:
     # Calculate sector data
     sector_data = []
     btc_price_data = prices.get("BTC", {})
-    btc_change_7d = btc_price_data.get("change_24h", 0) * 7
+    btc_change_14d = btc_price_data.get("change_24h", 0) * 14
     
     for sector_name, sector_info in SECTORS.items():
         sector_coins = sector_info["coins"]
         scores = []
-        returns_7d = []
+        returns_14d = []
         returns_vs_btc = []
         coin_details = []
         
@@ -39,34 +39,34 @@ async def get_sectors() -> Dict[str, Any]:
             if coin in prices:
                 price_info = prices[coin]
                 change_24h = price_info.get("change_24h", 0)
-                change_7d = change_24h * 7
-                vs_btc = change_7d - btc_change_7d
+                change_14d = change_24h * 14
+                vs_btc = change_14d - btc_change_14d
                 
-                score = 50 + (change_7d * 2)
+                score = 50 + (change_14d * 1)
                 score = max(0, min(100, score))
                 
                 scores.append(score)
-                returns_7d.append(change_7d)
+                returns_14d.append(change_14d)
                 returns_vs_btc.append(vs_btc)
                 
                 coin_details.append({
                     "symbol": coin,
-                    "return_7d": round(change_7d, 2),
+                    "return_14d": round(change_14d, 2),
                     "vs_btc": round(vs_btc, 2),
                     "price": price_info.get("price", 0),
                     "momentum_score": score
                 })
         
         # Sort coins by 7d return to get top 3
-        coin_details_sorted = sorted(coin_details, key=lambda x: x["return_7d"], reverse=True)
+        coin_details_sorted = sorted(coin_details, key=lambda x: x["return_14d"], reverse=True)
         top_3_coins = coin_details_sorted[:3]
         
         if scores:
             sector_data.append({
                 "sector": sector_name,
                 "momentum_score": int(sum(scores) / len(scores)),
-                "avg_return_7d": round(sum(returns_7d) / len(returns_7d), 2),
-                "avg_vs_btc_7d": round(sum(returns_vs_btc) / len(returns_vs_btc), 2),
+                "avg_return_14d": round(sum(returns_14d) / len(returns_14d), 2),
+                "avg_vs_btc_14d": round(sum(returns_vs_btc) / len(returns_vs_btc), 2),
                 "coin_count": len(scores),
                 "top_performer": top_3_coins[0]["symbol"] if top_3_coins else None,
                 "top_3_coins": top_3_coins,

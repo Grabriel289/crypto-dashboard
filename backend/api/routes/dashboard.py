@@ -256,12 +256,15 @@ async def get_sector_data() -> Dict[str, Any]:
 async def get_action_items() -> Dict[str, Any]:
     """Get prioritized action items."""
     # Fetch all data
-    macro = await macro_tide_scorer.calculate_full_score()
-    pulse = await get_crypto_pulse()
-    sectors = await get_sector_data()
-    key_levels = await get_key_levels()
-    calendar = await get_economic_calendar()
-    
+    macro, pulse, sectors, key_levels, calendar, abm = await asyncio.gather(
+        macro_tide_scorer.calculate_full_score(),
+        get_crypto_pulse(),
+        get_sector_data(),
+        get_key_levels(),
+        get_economic_calendar(),
+        get_abm_data(),
+    )
+
     actions = generate_action_items(
         macro_score=macro.get("adjusted_score", 2.5),
         macro_regime=macro.get("regime", ""),
@@ -270,9 +273,10 @@ async def get_action_items() -> Dict[str, Any]:
         funding_signals=pulse.get("funding", {}).get("rates", {}),
         whale_signal=pulse.get("whale", {}).get("signal", "NEUTRAL"),
         sector_verdict=sectors.get("verdict", {}),
-        sectors=sectors.get("sectors", [])
+        sectors=sectors.get("sectors", []),
+        abm_data=abm
     )
-    
+
     # Detect conflicting signals
     conflicts = detect_conflicting_signals(
         macro_score=macro.get("adjusted_score", 2.5),
@@ -291,9 +295,10 @@ async def get_action_items() -> Dict[str, Any]:
         "key_levels": key_levels,
         "crypto_pulse": pulse,
         "sectors": sectors,
-        "calendar": calendar
+        "calendar": calendar,
+        "abm": abm
     })
-    
+
     return {
         "actions": actions,
         "conflicts": conflicts,
@@ -426,9 +431,10 @@ async def get_full_dashboard() -> Dict[str, Any]:
         funding_signals=pulse.get("funding", {}).get("rates", {}),
         whale_signal=pulse.get("whale", {}).get("signal", "NEUTRAL"),
         sector_verdict=sectors.get("verdict", {}),
-        sectors=sectors.get("sectors", [])
+        sectors=sectors.get("sectors", []),
+        abm_data=abm
     )
-    
+
     # Detect conflicting signals
     conflicts = detect_conflicting_signals(
         macro_score=macro.get("adjusted_score", 2.5),
@@ -447,9 +453,10 @@ async def get_full_dashboard() -> Dict[str, Any]:
         "key_levels": key_levels,
         "crypto_pulse": pulse,
         "sectors": sectors,
-        "calendar": calendar
+        "calendar": calendar,
+        "abm": abm
     })
-    
+
     return {
         "macro": macro,
         "market_prices": prices,
