@@ -177,56 +177,72 @@ class DataAggregator:
         return await binance_fetcher.fetch_open_interest(symbol)
     
     async def fetch_7d_return(self, coin: str) -> Optional[float]:
+        """Fetch actual 7-day return from historical price data."""
+        return await self.fetch_nd_return(coin, days=7)
+
+    async def fetch_14d_return(self, coin: str) -> Optional[float]:
+        """Fetch actual 14-day return from historical price data."""
+        return await self.fetch_nd_return(coin, days=14)
+
+    async def fetch_nd_return(self, coin: str, days: int = 7) -> Optional[float]:
         """
-        Fetch actual 7-day return from historical price data.
-        Tries Binance, OKX, KuCoin, then CoinGecko.
-        Uses current price vs price from exactly 7 days ago.
+        Fetch actual N-day return from historical price data.
+        Tries Binance, OKX, KuCoin, then CoinGecko (7D only).
         """
-        # Try Binance first - uses actual current price vs 7-day historical
+        # Try Binance first
         binance_symbol = SYMBOL_MAPPING.get("binance", {}).get(coin)
         if binance_symbol:
-            return_7d = await binance_fetcher.fetch_7d_return(binance_symbol)
-            if return_7d is not None:
-                return return_7d
-        
+            ret = await binance_fetcher.fetch_nd_return(binance_symbol, days=days)
+            if ret is not None:
+                return ret
+
         # Fallback to OKX
         okx_symbol = SYMBOL_MAPPING.get("okx", {}).get(coin)
         if okx_symbol:
             from data.fetchers.okx import okx_fetcher
-            return_7d = await okx_fetcher.fetch_7d_return(okx_symbol)
-            if return_7d is not None:
-                return return_7d
-        
+            ret = await okx_fetcher.fetch_nd_return(okx_symbol, days=days)
+            if ret is not None:
+                return ret
+
         # Fallback to KuCoin
         kucoin_symbol = SYMBOL_MAPPING.get("kucoin", {}).get(coin)
         if kucoin_symbol:
-            return_7d = await kucoin_fetcher.fetch_7d_return(kucoin_symbol)
-            if return_7d is not None:
-                return return_7d
-        
-        # Final fallback to CoinGecko
-        try:
-            from data.fetchers.coingecko import coingecko_fetcher
-            return_7d = await coingecko_fetcher.fetch_7d_change(coin)
-            if return_7d is not None:
-                return return_7d
-        except Exception as e:
-            print(f"Error fetching 7d return for {coin} from CoinGecko: {e}")
-        
+            ret = await kucoin_fetcher.fetch_nd_return(kucoin_symbol, days=days)
+            if ret is not None:
+                return ret
+
+        # Final fallback to CoinGecko (7D only)
+        if days == 7:
+            try:
+                from data.fetchers.coingecko import coingecko_fetcher
+                ret = await coingecko_fetcher.fetch_7d_change(coin)
+                if ret is not None:
+                    return ret
+            except Exception as e:
+                print(f"Error fetching {days}d return for {coin} from CoinGecko: {e}")
+
         return None
-    
+
     async def fetch_multiple_7d_returns(self, coins: List[str]) -> Dict[str, float]:
         """Fetch 7-day returns for multiple coins concurrently."""
-        tasks = [self.fetch_7d_return(coin) for coin in coins]
+        return await self.fetch_multiple_nd_returns(coins, days=7)
+
+    async def fetch_multiple_14d_returns(self, coins: List[str]) -> Dict[str, float]:
+        """Fetch 14-day returns for multiple coins concurrently."""
+        return await self.fetch_multiple_nd_returns(coins, days=14)
+
+    async def fetch_multiple_nd_returns(self, coins: List[str], days: int = 7) -> Dict[str, float]:
+        """Fetch N-day returns for multiple coins concurrently."""
+        tasks = [self.fetch_nd_return(coin, days=days) for coin in coins]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         returns = {}
         for coin, result in zip(coins, results):
             if isinstance(result, Exception):
-                print(f"Error fetching 7d return for {coin}: {result}")
+                print(f"Error fetching {days}d return for {coin}: {result}")
             elif result is not None:
                 returns[coin] = result
-        
+
         return returns
 
 

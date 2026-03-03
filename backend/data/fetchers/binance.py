@@ -60,9 +60,17 @@ class BinanceFetcher:
                 return None
     
     async def fetch_7d_return(self, symbol: str) -> Optional[float]:
+        """Calculate actual 7-day return using historical price data."""
+        return await self.fetch_nd_return(symbol, days=7)
+
+    async def fetch_14d_return(self, symbol: str) -> Optional[float]:
+        """Calculate actual 14-day return using historical price data."""
+        return await self.fetch_nd_return(symbol, days=14)
+
+    async def fetch_nd_return(self, symbol: str, days: int = 7) -> Optional[float]:
         """
-        Calculate actual 7-day return using historical price data.
-        Fetches price from 7 days ago and compares to current price.
+        Calculate actual N-day return using historical price data.
+        Fetches price from N days ago and compares to current price.
         """
         try:
             # Get current price
@@ -70,23 +78,23 @@ class BinanceFetcher:
             if not current_data:
                 return None
             current_price = current_data["price"]
-            
-            # Get historical price from 7 days ago using klines
-            # Need 8 days to get the close price from exactly 7 days ago
-            df = await self.fetch_klines(symbol, interval="1d", limit=8)
-            if df is None or len(df) < 8:
+
+            # Get historical price from N days ago using klines
+            limit = days + 1
+            df = await self.fetch_klines(symbol, interval="1d", limit=limit)
+            if df is None or len(df) < limit:
                 return None
-            
-            # Price from 7 days ago (first candle in the 8-day window)
-            price_7d_ago = df["close"].iloc[0]
-            
+
+            # Price from N days ago (first candle in the window)
+            price_nd_ago = df["close"].iloc[0]
+
             # Calculate actual return
-            return_7d = ((current_price - price_7d_ago) / price_7d_ago) * 100
-            
-            return return_7d
-            
+            return_nd = ((current_price - price_nd_ago) / price_nd_ago) * 100
+
+            return return_nd
+
         except Exception as e:
-            print(f"Error calculating 7d return for {symbol}: {e}")
+            print(f"Error calculating {days}d return for {symbol}: {e}")
             return None
     
     async def fetch_funding_rate(self, symbol: str) -> Optional[Dict[str, Any]]:

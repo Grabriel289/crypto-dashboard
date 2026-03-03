@@ -49,7 +49,7 @@ function SectorRotation({ data }) {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <RefreshCw className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">🔄 Sector Momentum Ranking (7D vs BTC)</h2>
+          <h2 className="text-xl font-bold text-white">🔄 Sector Momentum Ranking (14D vs BTC)</h2>
         </div>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-cyber-text-secondary">BTC Momentum: <span className="text-white font-mono">{btc_momentum}</span></span>
@@ -77,7 +77,7 @@ function SectorRotation({ data }) {
             <tr>
               <th>Rank</th>
               <th>Sector</th>
-              <th>7D Return</th>
+              <th>14D Return</th>
               <th>vs BTC</th>
               <th>Mom Score</th>
               <th>Signal</th>
@@ -87,11 +87,11 @@ function SectorRotation({ data }) {
           <tbody>
             {sectors?.map((sector, index) => {
               // Signal logic aligned with backend verdict
-              const signal = sector.avg_vs_btc_7d > 5 ? '🟢 ROTATE IN' :
-                            sector.avg_vs_btc_7d > 2 ? '🟡 WATCH' :
-                            sector.avg_vs_btc_7d > 0 ? '⚪ NEUTRAL' :
-                            sector.avg_vs_btc_7d > -5 ? '🟠 UNDERPERFORM' :
-                            sector.avg_vs_btc_7d > -10 ? '🔴 AVOID' : '⚫ CAPITULATE'
+              const signal = sector.avg_vs_btc_14d > 5 ? '🟢 ROTATE IN' :
+                            sector.avg_vs_btc_14d > 2 ? '🟡 WATCH' :
+                            sector.avg_vs_btc_14d > 0 ? '⚪ NEUTRAL' :
+                            sector.avg_vs_btc_14d > -5 ? '🟠 UNDERPERFORM' :
+                            sector.avg_vs_btc_14d > -10 ? '🔴 AVOID' : '⚫ CAPITULATE'
               
               const isExpanded = expandedSector === sector.sector
               
@@ -108,14 +108,14 @@ function SectorRotation({ data }) {
                         <span className="text-xs text-cyber-text-muted">{sector.description}</span>
                       </div>
                     </td>
-                    <td className={`font-mono ${getReturnColor(sector.avg_return_7d)}`}>
-                      {typeof sector.avg_return_7d === 'number' 
-                        ? `${sector.avg_return_7d > 0 ? '+' : ''}${sector.avg_return_7d.toFixed(2)}%` 
+                    <td className={`font-mono ${getReturnColor(sector.avg_return_14d)}`}>
+                      {typeof sector.avg_return_14d === 'number' 
+                        ? `${sector.avg_return_14d > 0 ? '+' : ''}${sector.avg_return_14d.toFixed(2)}%` 
                         : 'N/A'}
                     </td>
-                    <td className={`font-mono ${getReturnColor(sector.avg_vs_btc_7d)}`}>
-                      {typeof sector.avg_vs_btc_7d === 'number' 
-                        ? `${sector.avg_vs_btc_7d > 0 ? '+' : ''}${sector.avg_vs_btc_7d.toFixed(2)}%` 
+                    <td className={`font-mono ${getReturnColor(sector.avg_vs_btc_14d)}`}>
+                      {typeof sector.avg_vs_btc_14d === 'number' 
+                        ? `${sector.avg_vs_btc_14d > 0 ? '+' : ''}${sector.avg_vs_btc_14d.toFixed(2)}%` 
                         : 'N/A'}
                     </td>
                     <td>
@@ -162,10 +162,10 @@ function SectorRotation({ data }) {
                           <div className="grid grid-cols-3 gap-4">
                             {sector.top_3_coins.map((coin, idx) => {
                               // DEBUG
-                              console.log(`Coin ${coin.symbol}:`, { return_7d: coin.return_7d, vs_btc: coin.vs_btc, data_source: coin.data_source })
+                              console.log(`Coin ${coin.symbol}:`, { return_14d: coin.return_14d, vs_btc: coin.vs_btc })
                               
                               // Ensure values are numbers
-                              const return7d = typeof coin.return_7d === 'number' ? coin.return_7d : 0
+                              const return14d = typeof coin.return_14d === 'number' ? coin.return_14d : 0
                               const vsBtc = typeof coin.vs_btc === 'number' ? coin.vs_btc : 0
                               
                               return (
@@ -179,15 +179,15 @@ function SectorRotation({ data }) {
                                     </span>
                                     <span className="font-bold text-white">{coin.symbol}</span>
                                   </div>
-                                  <div className={`text-sm font-mono ${getReturnColor(return7d)}`}>
-                                    {return7d > 0 ? '+' : ''}{return7d.toFixed(2)}%
+                                  <div className={`text-sm font-mono ${getReturnColor(return14d)}`}>
+                                    {return14d > 0 ? '+' : ''}{return14d.toFixed(2)}%
                                   </div>
                                   <div className={`text-xs ${getReturnColor(vsBtc)}`}>
                                     vs BTC: {vsBtc > 0 ? '+' : ''}{vsBtc.toFixed(2)}%
                                   </div>
                                   {coin.data_source && (
                                     <div className="text-xs text-cyber-text-muted mt-1">
-                                      {coin.data_source === '7d_klines' ? '✓ 7D' : 
+                                      {coin.data_source === '14d_klines' ? '✓ 14D' :
                                        coin.data_source === 'kucoin' ? '🔶 KuCoin' :
                                        coin.data_source === 'coingecko' ? '🌎 CoinGecko' : '~24h'}
                                     </div>

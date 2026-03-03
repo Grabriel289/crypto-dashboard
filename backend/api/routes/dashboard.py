@@ -138,90 +138,90 @@ async def get_crypto_pulse() -> Dict[str, Any]:
 
 @router.get("/sectors")
 async def get_sector_data() -> Dict[str, Any]:
-    """Get sector rotation data with real 7-day performance."""
+    """Get sector rotation data with real 14-day performance."""
     # Fetch prices for all coins
     all_coins = []
     for sector_coins in SECTORS.values():
         all_coins.extend(sector_coins["coins"])
     all_coins = list(set(all_coins))
-    
-    # Fetch prices (with KuCoin and CoinGecko fallbacks) and real 7-day returns concurrently
-    prices_result, returns_7d_data = await asyncio.gather(
+
+    # Fetch prices (with KuCoin and CoinGecko fallbacks) and real 14-day returns concurrently
+    prices_result, returns_14d_data = await asyncio.gather(
         data_aggregator.fetch_multiple_prices_with_fallbacks(all_coins),
-        data_aggregator.fetch_multiple_7d_returns(all_coins)
+        data_aggregator.fetch_multiple_14d_returns(all_coins)
     )
     prices = prices_result.get("prices", {})
-    
-    # Get BTC 7-day return for comparison
-    btc_return_7d = returns_7d_data.get("BTC", 0)
-    
+
+    # Get BTC 14-day return for comparison
+    btc_return_14d = returns_14d_data.get("BTC", 0)
+
     # For each sector, calculate momentum and top 3 coins
     sector_data = []
-    
+
     for sector_name, sector_info in SECTORS.items():
         sector_coins = sector_info["coins"]
         scores = []
-        returns_7d = []
+        returns_14d = []
         returns_vs_btc = []
         coin_details = []
-        
+
         for coin in sector_coins:
-            # Use real 7-day return if available, fallback to price data approximation
-            change_7d = returns_7d_data.get(coin)
-            
-            if change_7d is None and coin in prices:
-                # Fallback: use 24h change × 7 if 7d klines not available
-                change_7d = prices[coin].get("change_24h", 0) * 7
-            elif change_7d is None:
+            # Use real 14-day return if available, fallback to price data approximation
+            change_14d = returns_14d_data.get(coin)
+
+            if change_14d is None and coin in prices:
+                # Fallback: use 24h change x 14 if 14d klines not available
+                change_14d = prices[coin].get("change_24h", 0) * 14
+            elif change_14d is None:
                 continue  # Skip if no data at all
-            
+
             price_info = prices.get(coin, {})
-            vs_btc = change_7d - btc_return_7d
-            
+            vs_btc = change_14d - btc_return_14d
+
             # Simple momentum score (0-100)
-            score = 50 + (change_7d * 2)
+            score = 50 + (change_14d * 1)
             score = max(0, min(100, score))
-            
+
             scores.append(score)
-            returns_7d.append(change_7d)
+            returns_14d.append(change_14d)
             returns_vs_btc.append(vs_btc)
-            
+
             # Determine data source
-            if coin in returns_7d_data:
-                data_source = "7d_klines"
+            if coin in returns_14d_data:
+                data_source = "14d_klines"
             elif price_info.get("source") == "kucoin":
                 data_source = "kucoin"
             elif price_info.get("source") == "coingecko":
                 data_source = "coingecko"
             else:
                 data_source = "24h_approx"
-            
+
             coin_details.append({
                 "symbol": coin,
-                "return_7d": round(change_7d, 2),
+                "return_14d": round(change_14d, 2),
                 "vs_btc": round(vs_btc, 2),
                 "price": price_info.get("price", 0),
                 "momentum_score": score,
                 "data_source": data_source
             })
-        
-        # Sort coins by 7d return to get top 3
-        coin_details_sorted = sorted(coin_details, key=lambda x: x["return_7d"], reverse=True)
+
+        # Sort coins by 14d return to get top 3
+        coin_details_sorted = sorted(coin_details, key=lambda x: x["return_14d"], reverse=True)
         top_3_coins = coin_details_sorted[:3]
-        
+
         # Always include sector even if no data (for PERP and others)
         sector_data.append({
             "sector": sector_name,
             "momentum_score": int(sum(scores) / len(scores)) if scores else 0,
-            "avg_return_7d": round(sum(returns_7d) / len(returns_7d), 2) if returns_7d else 0,
-            "avg_vs_btc_7d": round(sum(returns_vs_btc) / len(returns_vs_btc), 2) if returns_vs_btc else 0,
+            "avg_return_14d": round(sum(returns_14d) / len(returns_14d), 2) if returns_14d else 0,
+            "avg_vs_btc_14d": round(sum(returns_vs_btc) / len(returns_vs_btc), 2) if returns_vs_btc else 0,
             "coin_count": len(scores),
             "top_performer": top_3_coins[0]["symbol"] if top_3_coins else None,
             "top_3_coins": top_3_coins,
             "description": sector_info["description"],
             "has_data": len(scores) > 0
         })
-    
+
     # Get BTC's actual momentum (not L1 sector average)
     btc_momentum = 50  # default
     l1_sector = next((s for s in sector_data if s["sector"] == "L1"), None)
@@ -231,23 +231,23 @@ async def get_sector_data() -> Dict[str, Any]:
         if btc_coin:
             btc_momentum = btc_coin.get("momentum_score", 50)
         else:
-            # Fallback: calculate from returns_7d_data
-            btc_return = returns_7d_data.get("BTC", 0)
-            btc_momentum = max(0, min(100, 50 + (btc_return * 2)))
-    
+            # Fallback: calculate from returns_14d_data
+            btc_return = returns_14d_data.get("BTC", 0)
+            btc_momentum = max(0, min(100, 50 + (btc_return * 1)))
+
     # Get macro score
     macro = await macro_tide_scorer.calculate_full_score()
     macro_score = macro.get("adjusted_score", 2.5)
-    
-    # Generate verdict (pass btc_return_7d for better comparison)
-    verdict = generate_sector_verdict(sector_data, btc_momentum, macro_score, btc_return_7d)
-    
+
+    # Generate verdict (pass btc_return_14d for better comparison)
+    verdict = generate_sector_verdict(sector_data, btc_momentum, macro_score, btc_return_14d)
+
     return {
         "sectors": sector_data,
         "verdict": verdict,
         "btc_momentum": btc_momentum,
         "macro_score": macro_score,
-        "data_source": "Real 7-day klines from Binance",
+        "data_source": "Real 14-day klines from Binance",
         "timestamp": datetime.now().isoformat()
     }
 
