@@ -42,7 +42,7 @@ function ABMPanel({ data }) {
       <section className="bg-cyber-bg-secondary rounded-xl border border-cyber-border-subtle p-6">
         <div className="flex items-center gap-2 mb-4">
           <TrendingUp className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">ALTCOIN BREADTH MOMENTUM</h2>
+          <h2 className="text-xl font-bold text-white">ALTCOIN SEASON INDEX</h2>
         </div>
         <div className="text-center text-cyber-text-muted py-8">
           {data?.error ? `Error: ${data.error}` : "Loading ABM data..."}
@@ -69,7 +69,7 @@ function ABMPanel({ data }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-6 h-6 text-cyber-accent-cyan" />
-          <h2 className="text-xl font-bold text-white">ALTCOIN BREADTH MOMENTUM</h2>
+          <h2 className="text-xl font-bold text-white">ALTCOIN SEASON INDEX</h2>
         </div>
         <div className="flex items-center gap-3 text-sm text-cyber-text-muted">
           <span>{outperform_count ?? "--"}/{valid_count ?? "--"} coins tracked</span>
@@ -105,14 +105,14 @@ function ABMPanel({ data }) {
                 border: `1px solid ${isActive ? item.color + "55" : item.color + "22"}`,
               }}
             >
-              <div className="text-sm font-bold mb-2" style={{ color: item.color }}>
+              <div className="text-base font-bold mb-2" style={{ color: item.color }}>
                 {item.title}
-                {isActive && <span className="ml-1 text-xs opacity-70">(ACTIVE)</span>}
+                {isActive && <span className="ml-1 text-sm opacity-70">(ACTIVE)</span>}
               </div>
-              <div className="text-xs text-cyber-text-secondary mb-2">
+              <div className="text-sm text-cyber-text-secondary mb-2">
                 {item.desc}
               </div>
-              <div className="text-xs font-semibold" style={{ color: item.color }}>
+              <div className="text-sm font-semibold" style={{ color: item.color }}>
                 Action: {item.action}
               </div>
             </div>
