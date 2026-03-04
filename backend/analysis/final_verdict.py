@@ -112,7 +112,9 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
     
     # Best sector outperforming
     if best_sector and best_sector.get("avg_vs_btc_14d", 0) > 0:
-        do_list.append(f"Focus: BTC > {best_sector.get('sector', 'Best')}")
+        sector_name = best_sector.get("sector", "Best")
+        vs_btc = best_sector.get("avg_vs_btc_14d", 0)
+        do_list.append(f"Watch {sector_name} sector ({vs_btc:+.1f}% vs BTC)")
     
     # Bullish = scale in
     if cdc_signal == "BULLISH" and macro_score >= 3:

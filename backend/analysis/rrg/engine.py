@@ -247,6 +247,8 @@ class RRGEngine:
           Y < 100   AND  not bottom-3       → Take Profit  (decelerating, not worst)
           Bottom 3  AND  6m return > 0      → Take Profit  (profits exist — exit signal)
           Bottom 3  AND  6m return ≤ 0      → Avoid        (already underwater)
+
+        Override: lagging quadrant assets are always Avoid (never Buy/Take Profit).
         """
         sorted_by_accel = sorted(results, key=lambda r: r.rs_momentum, reverse=True)
         n = len(sorted_by_accel)
@@ -254,14 +256,20 @@ class RRGEngine:
         actions: Dict[str, List] = {"buy": [], "watch": [], "reduce": [], "avoid": []}
 
         for rank, result in enumerate(sorted_by_accel, start=1):
-            if rank <= 3:
+            # Lagging quadrant: Take Profit if 6m return positive (rotated down
+            # from leading/weakening), otherwise Avoid
+            if result.quadrant == "lagging":
+                if result.return_6m > 0:
+                    actions["reduce"].append(result.symbol)
+                else:
+                    actions["avoid"].append(result.symbol)
+            elif rank <= 3:
                 actions["buy"].append(result.symbol)
             elif rank <= 6 and result.rs_momentum >= 100:
                 actions["watch"].append(result.symbol)
             elif result.rs_momentum < 100 and rank <= n - 3:
                 actions["reduce"].append(result.symbol)
             elif result.return_6m > 0:
-                # Bottom 3 but 6-month return is still positive — profits to protect
                 actions["reduce"].append(result.symbol)
             else:
                 actions["avoid"].append(result.symbol)
