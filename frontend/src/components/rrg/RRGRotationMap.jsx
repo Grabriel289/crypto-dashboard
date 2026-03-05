@@ -459,7 +459,7 @@ function RRGRotationMap({ data }) {
               fontSize: '10px',
               color: COLORS.textMuted
             }}>
-              ▼ Falling Momentum
+              ▼ Decelerating
             </span>
             <span style={{
               position: 'absolute',
@@ -469,7 +469,7 @@ function RRGRotationMap({ data }) {
               fontSize: '10px',
               color: COLORS.textMuted
             }}>
-              ▲ Rising Momentum
+              ▲ Accelerating
             </span>
             <span style={{
               position: 'absolute',
