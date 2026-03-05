@@ -110,6 +110,14 @@ class DataScheduler:
             id='abm_update',
             replace_existing=True
         )
+
+        # RRG Rotation Map - every 1 hour (daily ETF data from Yahoo Finance)
+        self.scheduler.add_job(
+            self._update_rrg,
+            IntervalTrigger(hours=1),
+            id='rrg_update',
+            replace_existing=True
+        )
     
     async def _update_macro(self):
         """Update macro data."""
@@ -117,7 +125,7 @@ class DataScheduler:
             print(f"[{datetime.now()}] Updating macro data...")
             data = await macro_tide_scorer.calculate_full_score()
             data_cache.set('macro', data)
-            print(f"[{datetime.now()}] Macro data updated: {data.get('adjusted_score')}/5")
+            print(f"[{datetime.now()}] Macro data updated: {data.get('adjusted_score')}/7")
         except Exception as e:
             print(f"Error updating macro data: {e}")
     
@@ -217,6 +225,62 @@ class DataScheduler:
             import traceback
             traceback.print_exc()
 
+    async def _update_rrg(self):
+        """Update RRG Rotation Map data — runs hourly (daily ETF data)."""
+        try:
+            print(f"[{datetime.now()}] Updating RRG data...")
+            from analysis.rrg import RRGEngine, RRGDataFetcher
+
+            fetcher = RRGDataFetcher()
+            engine = RRGEngine()
+            price_data = await fetcher.fetch_all_symbols()
+            await fetcher.close()
+
+            if price_data:
+                results = engine.calculate_all(price_data)
+                regime = engine.detect_regime(results)
+                top_picks = engine.get_top_picks(results)
+                action_groups = engine.get_action_groups(results)
+                insights = engine.generate_insights(results, regime)
+
+                def _asset_dict(r):
+                    return {
+                        "symbol": r.symbol, "name": r.name,
+                        "category": r.category, "color": r.color,
+                        "coordinate": {
+                            "rs_ratio": r.rs_ratio,
+                            "rs_momentum": r.rs_momentum,
+                            "quadrant": r.quadrant
+                        },
+                        "current_price": r.current_price,
+                        "period_return": r.period_return,
+                        "return_6m": r.return_6m,
+                    }
+
+                rrg_data = {
+                    "benchmark": "SPY",
+                    "risk_assets": [_asset_dict(r) for r in results if r.category == "risk"],
+                    "safe_haven_assets": [_asset_dict(r) for r in results if r.category == "safe_haven"],
+                    "regime": {
+                        "regime": regime.regime, "score": regime.score,
+                        "emoji": regime.emoji, "color": regime.color,
+                        "risk_summary": regime.risk_summary,
+                        "safe_summary": regime.safe_summary
+                    },
+                    "top_picks": top_picks,
+                    "action_groups": action_groups,
+                    "insights": insights,
+                    "calculation_period": 21,
+                }
+                data_cache.set('rrg', rrg_data)
+                print(f"[{datetime.now()}] RRG updated: regime={regime.regime}, {len(results)} assets")
+            else:
+                print(f"[{datetime.now()}] RRG: no price data available")
+        except Exception as e:
+            print(f"[{datetime.now()}] Error updating RRG: {e}")
+            import traceback
+            traceback.print_exc()
+
     def start(self):
         """Start the scheduler."""
         self.scheduler.start()
@@ -249,6 +313,10 @@ class DataScheduler:
         print(">>> Running ABM fetch (staggered 20s)...")
         await asyncio.sleep(20)
         await self._update_abm()
+        # RRG fetches from Yahoo Finance — stagger after ABM (Binance)
+        print(">>> Running RRG fetch (staggered 10s)...")
+        await asyncio.sleep(10)
+        await self._update_rrg()
         print(">>> Initial data fetch complete")
 
 

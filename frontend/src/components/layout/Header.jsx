@@ -1,15 +1,35 @@
-import React from 'react'
-import { RefreshCw, Activity, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { RefreshCw, Activity, TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react'
 
 function Header({ lastUpdated, onRefresh, isLoading, regime }) {
+  const [now, setNow] = useState(new Date())
+
+  // Tick every 10s to update staleness display
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 10000)
+    return () => clearInterval(timer)
+  }, [])
+
   const formatTime = (date) => {
     if (!date) return '--:--:--'
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
       minute: '2-digit',
       second: '2-digit'
     })
   }
+
+  const getStaleInfo = () => {
+    if (!lastUpdated) return { stale: false }
+    const ageSec = (now - lastUpdated) / 1000
+    if (ageSec > 120) {
+      const mins = Math.floor(ageSec / 60)
+      return { stale: true, text: `${mins}m ago`, warn: ageSec > 300 }
+    }
+    return { stale: false }
+  }
+
+  const staleInfo = getStaleInfo()
 
   const getRegimeColor = (regime) => {
     if (!regime) return 'text-cyber-text-secondary'
@@ -74,8 +94,19 @@ function Header({ lastUpdated, onRefresh, isLoading, regime }) {
           })}
         </div>
         <div className="flex items-center gap-2 text-cyber-text-muted">
-          <span className="w-2 h-2 rounded-full bg-cyber-accent-green animate-pulse"></span>
-          <span>Live Data</span>
+          {staleInfo.stale ? (
+            <>
+              <AlertTriangle className={`w-4 h-4 ${staleInfo.warn ? 'text-cyber-accent-red' : 'text-cyber-accent-orange'}`} />
+              <span className={staleInfo.warn ? 'text-cyber-accent-red' : 'text-cyber-accent-orange'}>
+                Data {staleInfo.text} old
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="w-2 h-2 rounded-full bg-cyber-accent-green animate-pulse"></span>
+              <span>Live Data</span>
+            </>
+          )}
         </div>
       </div>
     </header>

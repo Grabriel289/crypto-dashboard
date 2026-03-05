@@ -40,7 +40,7 @@ class FearGreedFetcher:
             return {
                 "label": "EXTREME FEAR",
                 "signal": "BOTTOM_SIGNAL",
-                "probability": "70% local bottom",
+                "probability": "Historically strong reversal zone",
                 "action": "Accumulate",
                 "emoji": "🔴"
             }
@@ -48,7 +48,7 @@ class FearGreedFetcher:
             return {
                 "label": "FEAR",
                 "signal": "CAUTIOUS_BULLISH",
-                "probability": "50% bottom forming",
+                "probability": "Contrarian buy zone",
                 "action": "Selective buying",
                 "emoji": "🟡"
             }
@@ -72,7 +72,7 @@ class FearGreedFetcher:
             return {
                 "label": "GREED",
                 "signal": "CAUTIOUS_BEARISH",
-                "probability": "Pullback risk",
+                "probability": "Elevated pullback risk",
                 "action": "Take some profits",
                 "emoji": "🟢"
             }
@@ -80,7 +80,7 @@ class FearGreedFetcher:
             return {
                 "label": "EXTREME GREED",
                 "signal": "TOP_SIGNAL",
-                "probability": "65% local top",
+                "probability": "Historically strong correction zone",
                 "action": "Take profits",
                 "emoji": "🚀"
             }

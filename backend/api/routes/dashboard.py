@@ -6,7 +6,7 @@ from datetime import datetime
 
 from scoring.macro_tide import macro_tide_scorer
 from scoring.momentum import calculate_momentum_from_prices, calculate_momentum_score, MomentumMetrics
-from scoring.fragility import calculate_fragility
+
 from scoring.funding import interpret_funding, aggregate_funding_signals
 from scoring.whale import WhaleActivity
 from scoring.sector_rotation import calculate_sector_momentum, generate_sector_verdict
@@ -81,45 +81,26 @@ async def get_crypto_pulse() -> Dict[str, Any]:
     # Get fragility from scheduler cache (updated hourly to avoid rate limits)
     from data.scheduler import data_cache
     cached_fragility = data_cache.get('fragility')
-    
-    cache_is_live = (
-        cached_fragility is not None and
-        cached_fragility.get('source') == 'binance_live' and
-        cached_fragility.get('fragility', {}).get('score') is not None
-    )
 
-    if cache_is_live:
-        # Use cached live data (scheduler updates this hourly)
+    if cached_fragility and not data_cache.is_stale('fragility', max_age_minutes=90):
+        # Use cached data (scheduler updates hourly)
         fragility = cached_fragility.get('fragility', {})
         fragility['cached_at'] = data_cache.get_timestamp('fragility').isoformat() if data_cache.get_timestamp('fragility') else None
         fragility['note'] = 'Hourly cached data (rate limit protection)'
-        print(f"[Fragility] Using cached live data: score={fragility.get('score')}")
     else:
-        # Cache is empty or has fallback data (e.g. cold-start network issue) — fetch live now
-        src = cached_fragility.get('source', 'none') if cached_fragility else 'none'
-        print(f"[Fragility] Cache not live (source={src}), fetching live from Binance...")
+        # Cache empty or stale — try live fetch
         try:
             heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
-            if heatmap and heatmap.get('fragility', {}).get('score') is not None:
-                fragility = heatmap.get('fragility', {})
-                fragility['source'] = heatmap.get('source', 'unknown')
-                fragility['note'] = 'Live fetch (scheduler cache not yet populated)'
-                # Only warm the scheduler cache with confirmed live data
-                if heatmap.get('source') == 'binance_live':
-                    data_cache.set('fragility', heatmap)
-                print(f"[Fragility] Live fetch: score={fragility.get('score')}, source={heatmap.get('source')}")
-            else:
-                raise ValueError("Heatmap returned no fragility score")
+            fragility = heatmap.get('fragility', {})
+            fragility['source'] = heatmap.get('source', 'unknown')
+            if heatmap.get('source') == 'binance_live':
+                data_cache.set('fragility', heatmap)
         except Exception as e:
-            print(f"[Fragility] Live fetch failed ({e}), using legacy fallback")
-            fragility = calculate_fragility(
-                vol_percentile=45,
-                drawdown_pct=-15,
-                funding_rate=funding_data.get("BTC", {}).get("rate", 0),
-                exchange_flow_pct=0
-            )
-            fragility["source"] = "legacy_fallback"
-            fragility["note"] = "Live fetch failed; scheduler will retry hourly"
+            print(f"[Fragility] Live fetch failed ({e}), using fallback")
+            fragility = cached_fragility.get('fragility', {}) if cached_fragility else {
+                "score": 45, "level": "Caution", "emoji": "🟡",
+                "source": "fallback", "note": "Data temporarily unavailable"
+            }
     
     # Fetch Derivative Sentiment (real data from Binance Futures)
     derivative_sentiment = await derivative_sentiment_fetcher.get_sentiment()
@@ -523,84 +504,65 @@ async def get_abm_data() -> Dict[str, Any]:
 async def get_rrg_rotation() -> Dict[str, Any]:
     """
     Get Accelerating Momentum Rotation Map data.
-
-    Returns:
-        - ETF positions with Momentum Score (x) and Acceleration Score (y)
-        - Market regime (Risk-On/Risk-Off/Neutral)
-        - Top investment picks
-        - Action groups (Buy/Watch/Reduce/Avoid)
-        - Key insights
+    Uses hourly cached data (daily ETF prices don't change intraday).
     """
+    from data.scheduler import data_cache
+
+    # Try scheduler cache first (updated hourly)
+    cached = data_cache.get('rrg')
+    if cached and not data_cache.is_stale('rrg', max_age_minutes=90):
+        cached_at = data_cache.get_timestamp('rrg')
+        return {
+            **cached,
+            "data_freshness": "Cached",
+            "cached_at": cached_at.isoformat() if cached_at else None,
+            "timestamp": datetime.now().isoformat()
+        }
+
+    # Live fallback if cache empty or stale
     try:
-        # Initialize components
         fetcher = RRGDataFetcher()
         engine = RRGEngine()
-        
-        # Fetch price data
         price_data = await fetcher.fetch_all_symbols()
+        await fetcher.close()
 
         if not price_data:
-            return {
-                "error": "Unable to fetch price data",
-                "timestamp": datetime.now().isoformat()
-            }
+            return {"error": "Unable to fetch price data", "timestamp": datetime.now().isoformat()}
 
-        # Calculate Accelerating Momentum scores for all ETFs
         results = engine.calculate_all(price_data)
-        
-        # Detect market regime
         regime = engine.detect_regime(results)
-        
-        # Generate recommendations
         top_picks = engine.get_top_picks(results)
         action_groups = engine.get_action_groups(results)
         insights = engine.generate_insights(results, regime)
-        
-        # Separate by category
+
         def _asset_dict(r):
             return {
-                "symbol": r.symbol,
-                "name": r.name,
-                "category": r.category,
-                "color": r.color,
+                "symbol": r.symbol, "name": r.name,
+                "category": r.category, "color": r.color,
                 "coordinate": {
-                    "rs_ratio": r.rs_ratio,
-                    "rs_momentum": r.rs_momentum,
+                    "rs_ratio": r.rs_ratio, "rs_momentum": r.rs_momentum,
                     "quadrant": r.quadrant
                 },
                 "current_price": r.current_price,
-                "period_return": r.period_return,
-                "return_6m": r.return_6m,
+                "period_return": r.period_return, "return_6m": r.return_6m,
             }
 
-        risk_assets = [_asset_dict(r) for r in results if r.category == "risk"]
-        safe_haven_assets = [_asset_dict(r) for r in results if r.category == "safe_haven"]
-        
-        await fetcher.close()
-        
-        return {
-            "timestamp": datetime.now().isoformat(),
+        rrg_data = {
             "benchmark": "SPY",
-            "risk_assets": risk_assets,
-            "safe_haven_assets": safe_haven_assets,
+            "risk_assets": [_asset_dict(r) for r in results if r.category == "risk"],
+            "safe_haven_assets": [_asset_dict(r) for r in results if r.category == "safe_haven"],
             "regime": {
-                "regime": regime.regime,
-                "score": regime.score,
-                "emoji": regime.emoji,
-                "color": regime.color,
-                "risk_summary": regime.risk_summary,
-                "safe_summary": regime.safe_summary
+                "regime": regime.regime, "score": regime.score,
+                "emoji": regime.emoji, "color": regime.color,
+                "risk_summary": regime.risk_summary, "safe_summary": regime.safe_summary
             },
-            "top_picks": top_picks,
-            "action_groups": action_groups,
-            "insights": insights,
-            "calculation_period": 21,
-            "data_freshness": "Live"
+            "top_picks": top_picks, "action_groups": action_groups,
+            "insights": insights, "calculation_period": 21,
         }
-        
+        data_cache.set('rrg', rrg_data)
+
+        return {**rrg_data, "data_freshness": "Live", "timestamp": datetime.now().isoformat()}
+
     except Exception as e:
         print(f"Error in RRG rotation endpoint: {e}")
-        return {
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
+        return {"error": str(e), "timestamp": datetime.now().isoformat()}

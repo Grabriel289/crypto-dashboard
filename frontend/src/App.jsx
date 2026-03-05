@@ -15,6 +15,7 @@ import CorrelationMatrix from './components/indicators/CorrelationMatrix'
 import { RRGRotationMap } from './components/rrg'
 import ABMPanel from './components/abm'
 import Footer from './components/layout/Footer'
+import ErrorBoundary from './components/layout/ErrorBoundary'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -88,71 +89,84 @@ function App() {
         />
         
         <main className="space-y-6">
-          {/* Section: Live Market Prices */}
           <section className="animate-fade-in">
-            <MarketPrices data={data?.market_prices} />
+            <ErrorBoundary name="Market Prices">
+              <MarketPrices data={data?.market_prices} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section: Conflicting Signals Alert */}
+
           {data?.conflicts?.has_conflict && (
             <section className="animate-fade-in">
-              <ConflictingSignals data={data?.conflicts} />
+              <ErrorBoundary name="Conflicting Signals">
+                <ConflictingSignals data={data?.conflicts} />
+              </ErrorBoundary>
             </section>
           )}
-          
-          {/* Section: Key Levels & CDC Signal */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.05s' }}>
-            <KeyLevelsCDC data={data?.key_levels} />
+            <ErrorBoundary name="Key Levels & CDC">
+              <KeyLevelsCDC data={data?.key_levels} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section: Stablecoin Flow */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
-            <StablecoinFlow data={data?.stablecoin} />
+            <ErrorBoundary name="Stablecoin Flow">
+              <StablecoinFlow data={data?.stablecoin} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section: Economic Calendar */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <EconomicCalendar data={data?.calendar} />
+            <ErrorBoundary name="Economic Calendar">
+              <EconomicCalendar data={data?.calendar} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section: RRG Rotation Map */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.22s' }}>
-            <RRGRotationMap data={data?.rrg_rotation} />
+            <ErrorBoundary name="RRG Rotation Map">
+              <RRGRotationMap data={data?.rrg_rotation} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section: Correlation Matrix & PAXG/BTC */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
-            <CorrelationMatrix data={data?.correlation} />
+            <ErrorBoundary name="Correlation Matrix">
+              <CorrelationMatrix data={data?.correlation} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section 1: Macro Tide */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
-            <MacroTide data={data?.macro} />
+            <ErrorBoundary name="Macro Tide">
+              <MacroTide data={data?.macro} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section 2: Crypto Pulse */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.35s' }}>
-            <CryptoPulse data={data?.crypto_pulse} />
+            <ErrorBoundary name="Crypto Pulse">
+              <CryptoPulse data={data?.crypto_pulse} />
+            </ErrorBoundary>
           </section>
 
-          {/* Section: Altcoin Breadth Momentum */}
           <section className="animate-fade-in" style={{ animationDelay: '0.37s' }}>
-            <ABMPanel data={data?.abm} />
+            <ErrorBoundary name="Altcoin Season Index">
+              <ABMPanel data={data?.abm} />
+            </ErrorBoundary>
           </section>
 
-          {/* Section 3: Sector Rotation */}
           <section className="animate-fade-in" style={{ animationDelay: '0.4s' }}>
-            <SectorRotation data={data?.sectors} />
+            <ErrorBoundary name="Sector Rotation">
+              <SectorRotation data={data?.sectors} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section 4: Action Items */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.45s' }}>
-            <ActionItems data={data?.actions} summary={data?.macro} />
+            <ErrorBoundary name="Action Items">
+              <ActionItems data={data?.actions} summary={data?.macro} />
+            </ErrorBoundary>
           </section>
-          
-          {/* Section 5: Final Verdict */}
+
           <section className="animate-fade-in" style={{ animationDelay: '0.5s' }}>
-            <FinalVerdict data={data?.final_verdict} />
+            <ErrorBoundary name="Final Verdict">
+              <FinalVerdict data={data?.final_verdict} />
+            </ErrorBoundary>
           </section>
         </main>
         
