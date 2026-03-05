@@ -12,11 +12,13 @@ ETF_SYMBOLS = {
     "BOTZ": {"name": "AI/Robotics", "category": "risk", "color": "#8b5cf6"},
     "QQQ": {"name": "Nasdaq 100", "category": "risk", "color": "#00d4aa"},
     "IWM": {"name": "Small Cap", "category": "risk", "color": "#f85149"},
+    "EEM": {"name": "Emerging Mkts", "category": "risk", "color": "#fb923c"},
+    "XLE": {"name": "Energy", "category": "risk", "color": "#ef4444"},
+    "HYG": {"name": "High Yield", "category": "risk", "color": "#f472b6"},
 
     # Safe Haven Assets
     "GLD": {"name": "Gold", "category": "safe_haven", "color": "#ffd700"},
     "TLT": {"name": "Long-Term Bonds", "category": "safe_haven", "color": "#4ade80"},
-    "SHY": {"name": "Short-Term Bonds", "category": "safe_haven", "color": "#22d3ee"},
     "UUP": {"name": "US Dollar", "category": "safe_haven", "color": "#a3e635"},
 }
 

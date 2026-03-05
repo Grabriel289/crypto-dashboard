@@ -192,7 +192,9 @@ class RRGEngine:
                 safe_counts[result.quadrant] = safe_counts.get(result.quadrant, 0) + 1
 
         net_score = risk_score + safe_score
-        max_possible = 18
+        risk_count = sum(risk_counts.values())
+        safe_count = sum(safe_counts.values())
+        max_possible = (risk_count + safe_count) * 2 or 1
         normalized_score = (net_score / max_possible) * 10
 
         if normalized_score >= RISK_ON_THRESHOLD:
