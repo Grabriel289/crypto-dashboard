@@ -908,8 +908,8 @@ function RRGRotationMap({ data }) {
         }}>
           {/* BUY */}
           <div style={{
-            border: '2px solid #3fb950',
-            background: 'rgba(63, 185, 80, 0.08)',
+            border: '2px solid #00c9a7',
+            background: 'rgba(0, 201, 167, 0.08)',
             borderRadius: '10px',
             padding: '15px',
             textAlign: 'center'
@@ -918,7 +918,7 @@ function RRGRotationMap({ data }) {
               fontSize: '11px',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: '#3fb950',
+              color: '#00c9a7',
               marginBottom: '10px',
               fontWeight: 600
             }}>
@@ -949,8 +949,8 @@ function RRGRotationMap({ data }) {
 
           {/* WATCH */}
           <div style={{
-            border: '2px solid #58a6ff',
-            background: 'rgba(88, 166, 255, 0.08)',
+            border: '2px solid #a78bfa',
+            background: 'rgba(167, 139, 250, 0.08)',
             borderRadius: '10px',
             padding: '15px',
             textAlign: 'center'
@@ -959,7 +959,7 @@ function RRGRotationMap({ data }) {
               fontSize: '11px',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: '#58a6ff',
+              color: '#a78bfa',
               marginBottom: '10px',
               fontWeight: 600
             }}>
@@ -991,8 +991,8 @@ function RRGRotationMap({ data }) {
 
           {/* REDUCE */}
           <div style={{
-            border: '2px solid #d29922',
-            background: 'rgba(210, 153, 34, 0.08)',
+            border: '2px solid #fbbf24',
+            background: 'rgba(251, 191, 36, 0.08)',
             borderRadius: '10px',
             padding: '15px',
             textAlign: 'center'
@@ -1001,7 +1001,7 @@ function RRGRotationMap({ data }) {
               fontSize: '11px',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: '#d29922',
+              color: '#fbbf24',
               marginBottom: '10px',
               fontWeight: 600
             }}>
@@ -1033,8 +1033,8 @@ function RRGRotationMap({ data }) {
 
           {/* AVOID */}
           <div style={{
-            border: '2px solid #f85149',
-            background: 'rgba(248, 81, 73, 0.08)',
+            border: '2px solid #9ca3af',
+            background: 'rgba(156, 163, 175, 0.08)',
             borderRadius: '10px',
             padding: '15px',
             textAlign: 'center'
@@ -1043,7 +1043,7 @@ function RRGRotationMap({ data }) {
               fontSize: '11px',
               textTransform: 'uppercase',
               letterSpacing: '1px',
-              color: '#f85149',
+              color: '#9ca3af',
               marginBottom: '10px',
               fontWeight: 600
             }}>
