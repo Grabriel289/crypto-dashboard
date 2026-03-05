@@ -11,11 +11,13 @@ class MacroIndicators:
     """Raw macro indicator data."""
     nfci: Optional[Dict] = None
     hy_spread: Optional[Dict] = None
-    move_index: Optional[Dict] = None  # Will need Yahoo Finance
-    cu_au_ratio: Optional[Dict] = None  # Will need Yahoo Finance
+    move_index: Optional[Dict] = None
+    cu_au_ratio: Optional[Dict] = None
     net_liquidity: Optional[Dict] = None
     fed_funds: Optional[Dict] = None
     treasury_10y: Optional[Dict] = None
+    treasury_2y: Optional[Dict] = None
+    dxy: Optional[Dict] = None
 
 
 class MacroTideScorer:
@@ -32,27 +34,51 @@ class MacroTideScorer:
         indicators.fed_funds = await fred_fetcher.fetch_fed_funds()
         indicators.treasury_10y = await fred_fetcher.fetch_treasury_10y()
         
-        # Fetch MOVE index and Cu/Au ratio from Yahoo Finance (real-time)
+        indicators.treasury_2y = await fred_fetcher.fetch_treasury_2y()
+
+        # Fetch MOVE, Cu/Au, DXY from Yahoo Finance (real-time)
         indicators.move_index = await yahoo_finance_fetcher.fetch_move_index()
         indicators.cu_au_ratio = await yahoo_finance_fetcher.fetch_cu_au_ratio()
-        
+        indicators.dxy = await yahoo_finance_fetcher.fetch_dxy()
+
         return indicators
     
+    def _calc_yield_curve(self, indicators: MacroIndicators) -> Dict[str, Any]:
+        """Calculate yield curve score from 10Y-2Y spread."""
+        if indicators.treasury_10y and indicators.treasury_2y:
+            t10 = indicators.treasury_10y.get("value", 0)
+            t2 = indicators.treasury_2y.get("value", 0)
+            spread = t10 - t2
+            # Linear: +1.5% (steep) = 1.0, -0.5% (inverted) = 0.0
+            if spread >= 1.5:
+                score = 1.0
+            elif spread <= -0.5:
+                score = 0.0
+            else:
+                score = round((spread + 0.5) / 2.0, 2)
+            status = "🟢" if score >= 0.7 else ("🟡" if score >= 0.3 else "🔴")
+            return {"value": round(spread, 2), "score": score, "status": status}
+        return {"value": None, "score": 0.5, "status": "⚪"}
+
     def calculate_b1_score(self, indicators: MacroIndicators) -> Dict[str, Any]:
-        """Calculate raw B1 score."""
+        """Calculate raw B1 score (7 indicators, max 7.0)."""
+        yc = self._calc_yield_curve(indicators)
+
         scores = {
             "NFCI": indicators.nfci.get("score", 0) if indicators.nfci else 0,
             "HY_Spread": indicators.hy_spread.get("score", 0) if indicators.hy_spread else 0,
             "MOVE": indicators.move_index.get("score", 0.5) if indicators.move_index else 0.5,
             "CuAu_Ratio": indicators.cu_au_ratio.get("score", 0.5) if indicators.cu_au_ratio else 0.5,
             "Net_Liquidity": indicators.net_liquidity.get("score", 0.5) if indicators.net_liquidity else 0.5,
+            "DXY": indicators.dxy.get("score", 0.5) if indicators.dxy else 0.5,
+            "Yield_Curve": yc["score"],
         }
-        
+
         raw_score = sum(scores.values())
-        
+
         return {
-            "raw_score": round(raw_score, 1),
-            "max_score": 5.0,
+            "raw_score": round(raw_score, 2),
+            "max_score": 7.0,
             "components": scores,
             "details": {
                 "NFCI": {
@@ -74,6 +100,14 @@ class MacroTideScorer:
                 "Net_Liquidity": {
                     "value": f"${indicators.net_liquidity.get('value_trillion', 0)}T" if indicators.net_liquidity else None,
                     "status": indicators.net_liquidity.get("status", "⚪") if indicators.net_liquidity else "⚪"
+                },
+                "DXY": {
+                    "value": indicators.dxy.get("value") if indicators.dxy else None,
+                    "status": indicators.dxy.get("status", "⚪") if indicators.dxy else "⚪"
+                },
+                "Yield_Curve": {
+                    "value": f"{yc['value']}%" if yc["value"] is not None else None,
+                    "status": yc["status"]
                 }
             }
         }
@@ -125,20 +159,20 @@ class MacroTideScorer:
         }
     
     def classify_regime(self, adjusted_score: float) -> Dict[str, str]:
-        """Classify market regime based on adjusted score."""
-        if adjusted_score >= 4.0:
+        """Classify market regime based on adjusted score (0-7 scale)."""
+        if adjusted_score >= 5.5:
             return {
                 "regime": "🟢 HIGH TIDE / RISK-ON",
                 "stance": "Aggressive",
                 "emoji": "🟢"
             }
-        elif adjusted_score >= 3.0:
+        elif adjusted_score >= 4.0:
             return {
                 "regime": "🟡 NEUTRAL",
                 "stance": "Balanced",
                 "emoji": "🟡"
             }
-        elif adjusted_score >= 2.0:
+        elif adjusted_score >= 2.5:
             return {
                 "regime": "🟠 CAUTION / BLOCKED FLOW",
                 "stance": "Defensive",
@@ -172,7 +206,7 @@ class MacroTideScorer:
             "leak_penalty": leaks["total_penalty"],
             "leak_details": leaks["leaks"],
             "adjusted_score": round(adjusted_score, 1),
-            "max_adjusted_score": 5.0,
+            "max_adjusted_score": 7.0,
             "regime": regime["regime"],
             "stance": regime["stance"],
             "regime_emoji": regime["emoji"]

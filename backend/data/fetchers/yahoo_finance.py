@@ -66,83 +66,82 @@ class YahooFinanceFetcher:
                 print(f"Yahoo Finance fetch error for {symbol}: {e}")
                 return None
     
+    @staticmethod
+    def _linear_score(value: float, best: float, worst: float) -> float:
+        """Linear score 0.0-1.0. best < worst means lower is better."""
+        if best < worst:
+            if value <= best:
+                return 1.0
+            if value >= worst:
+                return 0.0
+            return round(1.0 - (value - best) / (worst - best), 2)
+        else:
+            if value >= best:
+                return 1.0
+            if value <= worst:
+                return 0.0
+            return round((value - worst) / (best - worst), 2)
+
+    @staticmethod
+    def _score_status(score: float) -> str:
+        if score >= 0.7:
+            return "🟢"
+        if score >= 0.3:
+            return "🟡"
+        return "🔴"
+
     async def fetch_move_index(self) -> Optional[Dict[str, Any]]:
-        """
-        Fetch MOVE Index (Merrill Lynch Option Volatility Estimate).
-        
-        Ticker: ^MOVE
-        The MOVE index measures implied volatility of US Treasury bonds.
-        High MOVE = bond market stress = risk-off for crypto.
-        """
+        """Fetch MOVE Index (bond volatility). Low = calm = risk-on."""
         data = await self.fetch_ticker("^MOVE")
         if data:
             value = data["price"]
-            
-            # Scoring for MOVE Index:
-            # < 80 = calm bond market = 1.0pt (risk-on for crypto)
-            # 80-100 = elevated = 0.5pt
-            # > 100 = stressed = 0pt (risk-off)
-            if value < 80:
-                score = 1.0
-                status = "🟢"
-            elif value < 100:
-                score = 0.5
-                status = "🟡"
-            else:
-                score = 0.0
-                status = "🔴"
-            
+            # Linear: 70 (calm) = 1.0, 120 (stressed) = 0.0
+            score = self._linear_score(value, best=70, worst=120)
             return {
                 "value": value,
                 "change_pct": round(data["change_pct"], 2),
                 "score": score,
-                "status": status,
+                "status": self._score_status(score),
                 "date": data["timestamp"].strftime("%Y-%m-%d"),
                 "description": "MOVE Index (Bond Volatility)",
                 "source": "yahoo_finance"
             }
         return None
-    
+
     async def fetch_cu_au_ratio(self) -> Optional[Dict[str, Any]]:
-        """
-        Fetch Copper/Gold ratio as economic health indicator.
-        
-        Copper = Economic growth (industrial demand)
-        Gold = Safe haven / recession hedge
-        
-        High Cu/Au = growth optimism = risk-on
-        Low Cu/Au = recession fear = risk-off
-        """
-        # Fetch both copper and gold
-        copper = await self.fetch_ticker("HG=F")  # Copper futures
-        gold = await self.fetch_ticker("GC=F")    # Gold futures
-        
+        """Fetch Copper/Gold ratio. High = growth = risk-on."""
+        copper = await self.fetch_ticker("HG=F")
+        gold = await self.fetch_ticker("GC=F")
         if copper and gold and gold["price"] > 0:
-            # Calculate ratio: Copper price / Gold price
             ratio = copper["price"] / gold["price"]
-            
-            # Historical context:
-            # Ratio > 0.0025 = strong growth signal = 1.0pt
-            # Ratio 0.0020-0.0025 = moderate = 0.5pt
-            # Ratio < 0.0020 = weak = 0pt
-            if ratio > 0.0025:
-                score = 1.0
-                status = "🟢"
-            elif ratio > 0.0020:
-                score = 0.5
-                status = "🟡"
-            else:
-                score = 0.0
-                status = "🔴"
-            
+            # Linear: 0.0028 (strong growth) = 1.0, 0.0016 (recession) = 0.0
+            score = self._linear_score(ratio, best=0.0028, worst=0.0016)
             return {
                 "value": round(ratio, 6),
                 "copper_price": copper["price"],
                 "gold_price": gold["price"],
                 "score": score,
-                "status": status,
+                "status": self._score_status(score),
                 "date": datetime.now().strftime("%Y-%m-%d"),
                 "description": "Copper/Gold Ratio (Growth Signal)",
+                "source": "yahoo_finance"
+            }
+        return None
+
+    async def fetch_dxy(self) -> Optional[Dict[str, Any]]:
+        """Fetch DXY (US Dollar Index). Strong dollar = risk-off for crypto."""
+        data = await self.fetch_ticker("DX-Y.NYB")
+        if data:
+            value = data["price"]
+            # Linear: 95 (weak dollar) = 1.0, 110 (strong dollar) = 0.0
+            score = self._linear_score(value, best=95, worst=110)
+            return {
+                "value": round(value, 2),
+                "change_pct": round(data["change_pct"], 2),
+                "score": score,
+                "status": self._score_status(score),
+                "date": data["timestamp"].strftime("%Y-%m-%d"),
+                "description": "US Dollar Index",
                 "source": "yahoo_finance"
             }
         return None

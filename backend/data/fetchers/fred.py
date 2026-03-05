@@ -54,54 +54,74 @@ class FREDFetcher:
                 print(f"FRED fetch error for {series_id}: {e}")
                 return None
     
+    @staticmethod
+    def _linear_score(value: float, best: float, worst: float) -> float:
+        """Linear score 0.0-1.0 between best and worst thresholds.
+        If best < worst: lower value = better (e.g., NFCI, HY Spread).
+        If best > worst: higher value = better (e.g., Cu/Au ratio)."""
+        if best < worst:
+            if value <= best:
+                return 1.0
+            if value >= worst:
+                return 0.0
+            return round(1.0 - (value - best) / (worst - best), 2)
+        else:
+            if value >= best:
+                return 1.0
+            if value <= worst:
+                return 0.0
+            return round((value - worst) / (best - worst), 2)
+
+    @staticmethod
+    def _score_status(score: float) -> str:
+        if score >= 0.7:
+            return "🟢"
+        if score >= 0.3:
+            return "🟡"
+        return "🔴"
+
     async def fetch_nfci(self) -> Optional[Dict[str, Any]]:
         """Fetch NFCI (Chicago Fed National Financial Conditions Index)."""
         data = await self.fetch_series("NFCI", limit=10)
         if data and data["last_value"] is not None:
             value = data["last_value"]
-            # Scoring: < 0 = 1.0pt, 0-0.5 = 0.5pt, > 0.5 = 0pt
-            if value < 0:
-                score = 1.0
-                status = "🟢"
-            elif value < 0.5:
-                score = 0.5
-                status = "🟡"
-            else:
-                score = 0.0
-                status = "🔴"
-            
+            # Linear: -0.5 (loose) = 1.0, +0.5 (tight) = 0.0
+            score = self._linear_score(value, best=-0.5, worst=0.5)
             return {
                 "value": value,
                 "score": score,
-                "status": status,
+                "status": self._score_status(score),
                 "date": data["last_date"],
                 "description": "Financial Conditions Index"
             }
         return None
-    
+
     async def fetch_hy_spread(self) -> Optional[Dict[str, Any]]:
         """Fetch High Yield Spread."""
         data = await self.fetch_series("BAMLH0A0HYM2", limit=10)
         if data and data["last_value"] is not None:
             value = data["last_value"]
-            # Scoring: < 3.5% = 1.0pt, 3.5-5.5% = 0.5pt, > 5.5% = 0pt
-            if value < 3.5:
-                score = 1.0
-                status = "🟢"
-            elif value < 5.5:
-                score = 0.5
-                status = "🟡"
-            else:
-                score = 0.0
-                status = "🔴"
-            
+            # Linear: 2.5% (tight) = 1.0, 6.0% (wide) = 0.0
+            score = self._linear_score(value, best=2.5, worst=6.0)
             return {
                 "value": value,
                 "value_pct": f"{value}%",
                 "score": score,
-                "status": status,
+                "status": self._score_status(score),
                 "date": data["last_date"],
                 "description": "High Yield Spread"
+            }
+        return None
+
+    async def fetch_treasury_2y(self) -> Optional[Dict[str, Any]]:
+        """Fetch 2-Year Treasury Rate."""
+        data = await self.fetch_series("DGS2", limit=10)
+        if data and data["last_value"] is not None:
+            return {
+                "value": data["last_value"],
+                "value_pct": f"{data['last_value']}%",
+                "date": data["last_date"],
+                "description": "2-Year Treasury"
             }
         return None
     
@@ -184,12 +204,10 @@ class FREDFetcher:
             
             net_liq = walcl_b - wtregen_b - rrp_b
             
-            # Calculate YoY change (simplified - using last year's value estimate)
-            # For proper YoY, would need historical data
-            # Scoring: YoY > 5% = 1.0pt, 0-5% = 0.5pt, < 0 = 0pt
-            # Simplified: assume neutral for now
-            score = 0.5
-            status = "🟡"
+            # Score based on absolute level as proxy
+            # $6T+ = abundant = 1.0, $4T = tight = 0.0
+            score = self._linear_score(net_liq, best=6000, worst=4000)
+            status = self._score_status(score)
             
             return {
                 "value": net_liq,

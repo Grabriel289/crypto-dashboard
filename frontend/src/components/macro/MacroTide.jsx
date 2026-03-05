@@ -16,16 +16,16 @@ function MacroTide({ data }) {
   } = data
 
   const getScoreColor = (score) => {
-    if (score >= 4) return 'text-cyber-accent-green'
-    if (score >= 3) return 'text-cyber-accent-yellow'
-    if (score >= 2) return 'text-cyber-accent-orange'
+    if (score >= 5.5) return 'text-cyber-accent-green'
+    if (score >= 4.0) return 'text-cyber-accent-yellow'
+    if (score >= 2.5) return 'text-cyber-accent-orange'
     return 'text-cyber-accent-red'
   }
 
   const getBarGradient = (score) => {
-    if (score >= 4) return 'from-cyber-accent-green to-cyber-accent-cyan'
-    if (score >= 3) return 'from-cyber-accent-yellow to-cyber-accent-orange'
-    if (score >= 2) return 'from-cyber-accent-orange to-cyber-accent-red'
+    if (score >= 5.5) return 'from-cyber-accent-green to-cyber-accent-cyan'
+    if (score >= 4.0) return 'from-cyber-accent-yellow to-cyber-accent-orange'
+    if (score >= 2.5) return 'from-cyber-accent-orange to-cyber-accent-red'
     return 'from-cyber-accent-red to-cyber-accent-red-dim'
   }
 
@@ -34,7 +34,9 @@ function MacroTide({ data }) {
     { key: 'HY_Spread', label: 'HY Spread', description: 'Credit Risk' },
     { key: 'MOVE', label: 'MOVE', description: 'Rate Volatility' },
     { key: 'CuAu_Ratio', label: 'Cu/Au', description: 'Growth Signal' },
-    { key: 'Net_Liquidity', label: 'Net Liq', description: 'Fed Liquidity' }
+    { key: 'Net_Liquidity', label: 'Net Liq', description: 'Fed Liquidity' },
+    { key: 'DXY', label: 'DXY', description: 'US Dollar' },
+    { key: 'Yield_Curve', label: '10Y-2Y', description: 'Yield Curve' }
   ]
 
   // Extract Gold Cannibalization data
@@ -70,7 +72,7 @@ function MacroTide({ data }) {
         </div>
 
         {/* Indicators Grid */}
-        <div className="grid grid-cols-5 gap-3 mt-6">
+        <div className="grid grid-cols-4 gap-3 mt-6">
           {indicators.map(({ key, label, description }) => {
             const detail = b1_details?.[key]
             return (
@@ -199,7 +201,7 @@ function MacroTide({ data }) {
           </div>
           <div className="text-right">
             <span className={`score-display ${getScoreColor(adjusted_score)}`}>
-              {adjusted_score} <span className="text-2xl text-cyber-text-muted">/ 5.0</span>
+              {adjusted_score} <span className="text-2xl text-cyber-text-muted">/ 7.0</span>
             </span>
             <div className={`text-lg font-bold mt-1 ${getScoreColor(adjusted_score)}`}>
               {regime}

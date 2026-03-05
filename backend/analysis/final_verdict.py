@@ -60,7 +60,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
     stance = None
 
     # AGGRESSIVE: All green lights
-    if macro_score >= 4 and cdc_signal == "BULLISH" and fear_greed < 30:
+    if macro_score >= 5.5 and cdc_signal == "BULLISH" and fear_greed < 30:
         stance = {
             "text": "AGGRESSIVE",
             "color": "green",
@@ -69,7 +69,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
             "borderColor": "#00ff88"
         }
     # RISK-OFF: Macro very weak OR ABM exit + bearish CDC
-    elif macro_score < 2 or (abm_combined == "EXIT" and cdc_signal == "BEARISH"):
+    elif macro_score < 2.5 or (abm_combined == "EXIT" and cdc_signal == "BEARISH"):
         stance = {
             "text": "RISK-OFF / WAIT",
             "color": "red",
@@ -117,7 +117,7 @@ def generate_final_verdict(data: Dict[str, Any]) -> Dict[str, Any]:
         do_list.append(f"Watch {sector_name} sector ({vs_btc:+.1f}% vs BTC)")
     
     # Bullish = scale in
-    if cdc_signal == "BULLISH" and macro_score >= 3:
+    if cdc_signal == "BULLISH" and macro_score >= 4.0:
         do_list.append("Scale into positions")
 
     # ABM: Alt season entry signal

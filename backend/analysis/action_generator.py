@@ -43,7 +43,7 @@ def generate_action_items(
     # ═══════════════════════════════════════════════════════════════
     btc_funding = funding_signals.get("BTC", {})
     if fear_greed <= 15 and btc_funding.get("bias") == "bullish":
-        if macro_score >= 2.0:
+        if macro_score >= 2.5:
             actions.append({
                 "priority": "HIGH",
                 "emoji": "🔴",
@@ -57,7 +57,7 @@ def generate_action_items(
                 "emoji": "🟡",
                 "action": "Prepare for accumulation",
                 "reason": "Fear + squeeze setup BUT macro weak",
-                "condition": "Wait for Macro ≥ 2.5"
+                "condition": "Wait for Macro ≥ 3.0"
             })
     
     # ═══════════════════════════════════════════════════════════════
@@ -103,7 +103,7 @@ def generate_action_items(
             vs_btc = sector.get("avg_vs_btc_14d", 0)
             top_coin = sector.get("top_performer", "")
             
-            if macro_score >= 2.5:
+            if macro_score >= 3.5:
                 actions.append({
                     "priority": "MEDIUM",
                     "emoji": "🟡",
@@ -152,20 +152,20 @@ def generate_action_items(
     # ═══════════════════════════════════════════════════════════════
     # RULE 6: Macro-driven Actions
     # ═══════════════════════════════════════════════════════════════
-    if macro_score < 2.0:
+    if macro_score < 2.5:
         actions.append({
             "priority": "HIGH",
             "emoji": "🔴",
             "action": "Defensive allocation",
-            "reason": f"Macro score {macro_score}/5 = Risk-Off environment",
+            "reason": f"Macro score {macro_score}/7 = Risk-Off environment",
             "condition": "Increase stables to 30%+, reduce alt exposure"
         })
-    elif macro_score >= 4.0:
+    elif macro_score >= 5.5:
         actions.append({
             "priority": "LOW",
             "emoji": "⚪",
             "action": "Aggressive allocation OK",
-            "reason": f"Macro score {macro_score}/5 = Risk-On environment",
+            "reason": f"Macro score {macro_score}/7 = Risk-On environment",
             "condition": "Can increase alt exposure to 40-50%"
         })
     
