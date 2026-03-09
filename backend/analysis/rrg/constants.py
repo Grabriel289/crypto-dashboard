@@ -6,19 +6,33 @@ ETF_SYMBOLS = {
     # Benchmark (fetched for reference; excluded from rotation output)
     "SPY": {"name": "S&P 500", "category": "benchmark", "color": "#6b7280"},
 
-    # Risk Assets
+    # Risk Assets — Crypto
     "IBIT": {"name": "Bitcoin", "category": "risk", "color": "#f7931a"},
     "ETHA": {"name": "Ethereum", "category": "risk", "color": "#627eea"},
-    "BOTZ": {"name": "AI/Robotics", "category": "risk", "color": "#8b5cf6"},
+
+    # Risk Assets — Equity / Sector
     "QQQ": {"name": "Nasdaq 100", "category": "risk", "color": "#00d4aa"},
     "IWM": {"name": "Small Cap", "category": "risk", "color": "#f85149"},
-    "EEM": {"name": "Emerging Mkts", "category": "risk", "color": "#fb923c"},
+    "SMH": {"name": "Semiconductors", "category": "risk", "color": "#06b6d4"},
+    "BOTZ": {"name": "AI/Robotics", "category": "risk", "color": "#8b5cf6"},
+    "XLF": {"name": "Financials", "category": "risk", "color": "#2563eb"},
     "XLE": {"name": "Energy", "category": "risk", "color": "#ef4444"},
+
+    # Risk Assets — Regional
+    "EEM": {"name": "Emerging Mkts", "category": "risk", "color": "#fb923c"},
+    "EWJ": {"name": "Japan", "category": "risk", "color": "#e11d48"},
+    "FXI": {"name": "China", "category": "risk", "color": "#dc2626"},
+
+    # Risk Assets — Credit / Commodity
     "HYG": {"name": "High Yield", "category": "risk", "color": "#f472b6"},
+    "DBC": {"name": "Commodities", "category": "risk", "color": "#a16207"},
+    "COPX": {"name": "Copper Miners", "category": "risk", "color": "#b45309"},
 
     # Safe Haven Assets
     "GLD": {"name": "Gold", "category": "safe_haven", "color": "#ffd700"},
+    "SLV": {"name": "Silver", "category": "safe_haven", "color": "#94a3b8"},
     "TLT": {"name": "Long-Term Bonds", "category": "safe_haven", "color": "#4ade80"},
+    "TIP": {"name": "TIPS (Inflation)", "category": "safe_haven", "color": "#22d3ee"},
     "UUP": {"name": "US Dollar", "category": "safe_haven", "color": "#a3e635"},
 }
 
