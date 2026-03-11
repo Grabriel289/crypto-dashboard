@@ -438,6 +438,13 @@ async def get_full_dashboard() -> Dict[str, Any]:
         "abm": abm
     })
 
+    # Sync Key Levels prices with Market Prices so both panels show the same price
+    market_prices_data = prices.get("prices", {})
+    for coin_key in ("btc", "eth"):
+        coin_sym = coin_key.upper()
+        if coin_sym in market_prices_data and coin_key in key_levels:
+            key_levels[coin_key]["price"] = market_prices_data[coin_sym]["price"]
+
     return {
         "macro": macro,
         "market_prices": prices,
