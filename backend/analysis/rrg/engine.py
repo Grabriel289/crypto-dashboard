@@ -7,6 +7,7 @@ from datetime import datetime
 from .constants import (
     ETF_SYMBOLS, SHORT_PERIOD, LONG_PERIOD, SCALE_FACTOR,
     CENTER_VALUE, QUADRANT_SCORES, RISK_ON_THRESHOLD, RISK_OFF_THRESHOLD,
+    V6_SAFE_HAVEN_KEYS, V6_WEIGHTS, V6_ENTER_THRESHOLD, V6_EXIT_THRESHOLD,
 )
 
 
@@ -212,6 +213,162 @@ class RRGEngine:
             emoji=emoji,
             color=color,
         )
+
+    # ------------------------------------------------------------------
+    # V6 Composite Regime Filter
+    # ------------------------------------------------------------------
+
+    # Class-level state for hysteresis (persists across calls within process)
+    _v6_prev_regime: str = "neutral"
+    _v6_prev_score: Optional[float] = None
+
+    def detect_regime_v6(
+        self, results: List[RRGResult], regime: RegimeResult
+    ) -> Dict:
+        """
+        V6 multi-factor composite regime filter with hysteresis.
+
+        Combines 5 factors:
+          1. Raw score level (from detect_regime)
+          2. Score trend vs previous call
+          3. Safe-haven rotation (GLD+TLT+UUP positions)
+          4. BTC/IBIT quadrant
+          5. Risk breadth (% risk assets in Leading/Improving)
+
+        Returns dict with: regime, composite_score, factors breakdown
+        """
+        W = V6_WEIGHTS
+        composite = 0.0
+        factors = {}
+
+        # ── Factor 1: Raw score level ──
+        raw = regime.score
+        if raw <= W["score_strong_bear"]["threshold"]:
+            composite += W["score_strong_bear"]["value"]
+        elif raw <= W["score_bear"]["threshold"]:
+            composite += W["score_bear"]["value"]
+        elif raw >= W["score_strong_bull"]["threshold"]:
+            composite += W["score_strong_bull"]["value"]
+        elif raw >= W["score_bull"]["threshold"]:
+            composite += W["score_bull"]["value"]
+        factors["raw_score"] = raw
+
+        # ── Factor 2: Score trend (change vs previous snapshot) ──
+        trend = 0.0
+        if self._v6_prev_score is not None:
+            trend = raw - self._v6_prev_score
+            if trend <= W["trend_strong_down"]["threshold"]:
+                composite += W["trend_strong_down"]["value"]
+            elif trend <= W["trend_down"]["threshold"]:
+                composite += W["trend_down"]["value"]
+            elif trend >= W["trend_strong_up"]["threshold"]:
+                composite += W["trend_strong_up"]["value"]
+            elif trend >= W["trend_up"]["threshold"]:
+                composite += W["trend_up"]["value"]
+        factors["score_trend"] = round(trend, 1)
+
+        # ── Factor 3: Safe-haven rotation ──
+        sh_count = 0
+        sh_detail = {}
+        for r in results:
+            if r.symbol in V6_SAFE_HAVEN_KEYS:
+                bullish = r.quadrant in ("leading", "improving")
+                if bullish:
+                    sh_count += 1
+                sh_detail[r.symbol] = r.quadrant
+
+        if sh_count >= W["sh_full"]["count"]:
+            composite += W["sh_full"]["value"]
+        elif sh_count >= W["sh_partial"]["count"]:
+            composite += W["sh_partial"]["value"]
+        elif sh_count == W["sh_none"]["count"]:
+            composite += W["sh_none"]["value"]
+        factors["safe_haven"] = {"count": sh_count, "detail": sh_detail}
+
+        # ── Factor 4: BTC / IBIT quadrant ──
+        btc_quad = None
+        for r in results:
+            if r.symbol in ("IBIT", "ETHA"):
+                btc_quad = r.quadrant
+                break  # prefer IBIT (first crypto found)
+        if btc_quad == "leading":
+            composite += W["btc_leading"]["value"]
+        elif btc_quad == "improving":
+            composite += W["btc_improving"]["value"]
+        elif btc_quad == "weakening":
+            composite += W["btc_weakening"]["value"]
+        elif btc_quad == "lagging":
+            composite += W["btc_lagging"]["value"]
+        factors["crypto_quad"] = btc_quad
+
+        # ── Factor 5: Risk breadth ──
+        risk_total = 0
+        risk_bullish = 0
+        for r in results:
+            if r.category == "risk":
+                risk_total += 1
+                if r.quadrant in ("leading", "improving"):
+                    risk_bullish += 1
+        breadth = risk_bullish / risk_total * 100 if risk_total > 0 else 50
+
+        if breadth <= W["breadth_very_low"]["threshold"]:
+            composite += W["breadth_very_low"]["value"]
+        elif breadth <= W["breadth_low"]["threshold"]:
+            composite += W["breadth_low"]["value"]
+        elif breadth >= W["breadth_very_high"]["threshold"]:
+            composite += W["breadth_very_high"]["value"]
+        elif breadth >= W["breadth_high"]["threshold"]:
+            composite += W["breadth_high"]["value"]
+        factors["risk_breadth"] = round(breadth, 1)
+
+        composite = round(composite, 1)
+        factors["composite"] = composite
+
+        # ── Hysteresis ──
+        prev = self._v6_prev_regime
+        if prev == "neutral":
+            if composite >= V6_ENTER_THRESHOLD:
+                new_regime = "risk_on"
+            elif composite <= -V6_ENTER_THRESHOLD:
+                new_regime = "risk_off"
+            else:
+                new_regime = "neutral"
+        elif prev == "risk_on":
+            if composite <= -V6_ENTER_THRESHOLD:
+                new_regime = "risk_off"
+            elif composite < V6_EXIT_THRESHOLD:
+                new_regime = "neutral"
+            else:
+                new_regime = "risk_on"
+        elif prev == "risk_off":
+            if composite >= V6_ENTER_THRESHOLD:
+                new_regime = "risk_on"
+            elif composite > -V6_EXIT_THRESHOLD:
+                new_regime = "neutral"
+            else:
+                new_regime = "risk_off"
+        else:
+            new_regime = "neutral"
+
+        # Update state for next call
+        self._v6_prev_regime = new_regime
+        self._v6_prev_score = raw
+
+        # Color and emoji
+        if new_regime == "risk_on":
+            emoji, color = "🟢", "#3fb950"
+        elif new_regime == "risk_off":
+            emoji, color = "🔴", "#f85149"
+        else:
+            emoji, color = "🟡", "#d29922"
+
+        return {
+            "regime": new_regime,
+            "composite_score": composite,
+            "emoji": emoji,
+            "color": color,
+            "factors": factors,
+        }
 
     # ------------------------------------------------------------------
     # Recommendations (unchanged logic)

@@ -226,11 +226,12 @@ function RRGRotationMap({ data }) {
     );
   }
 
-  const { 
-    risk_assets = [], 
-    safe_haven_assets = [], 
-    regime = {}, 
-    top_picks = [], 
+  const {
+    risk_assets = [],
+    safe_haven_assets = [],
+    regime = {},
+    regime_filter = null,
+    top_picks = [],
     action_groups = [],
     insights = []
   } = data;
@@ -581,6 +582,73 @@ function RRGRotationMap({ data }) {
                 Score: {regime.score} / 10
               </div>
             </div>
+
+            {/* V6 Composite Regime Filter */}
+            {regime_filter && (
+              <div style={{
+                marginTop: '14px',
+                paddingTop: '14px',
+                borderTop: `1px solid ${COLORS.border}`
+              }}>
+                <div style={{
+                  fontSize: '10px',
+                  color: COLORS.textSecondary,
+                  textTransform: 'uppercase',
+                  marginBottom: '8px',
+                  letterSpacing: '0.5px'
+                }}>
+                  Regime Filter (V6)
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '8px'
+                }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    backgroundColor: `${regime_filter.color}20`,
+                    border: `1px solid ${regime_filter.color}40`,
+                    borderRadius: '6px'
+                  }}>
+                    <span style={{ fontSize: '14px' }}>{regime_filter.emoji}</span>
+                    <span style={{
+                      fontWeight: 'bold',
+                      color: regime_filter.color,
+                      fontSize: '12px'
+                    }}>
+                      {regime_filter.regime?.replace('_', '-').toUpperCase()}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    color: COLORS.textSecondary
+                  }}>
+                    {regime_filter.composite_score > 0 ? '+' : ''}{regime_filter.composite_score}
+                  </span>
+                </div>
+                {/* Factor breakdown */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '3px',
+                  fontSize: '10px',
+                  color: COLORS.textMuted
+                }}>
+                  {regime_filter.factors && (
+                    <>
+                      <span>SH Rotation: {regime_filter.factors.safe_haven?.count}/3</span>
+                      <span>Breadth: {regime_filter.factors.risk_breadth?.toFixed(0)}%</span>
+                      <span>Crypto: {regime_filter.factors.crypto_quad || '--'}</span>
+                      <span>Trend: {regime_filter.factors.score_trend > 0 ? '+' : ''}{regime_filter.factors.score_trend}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Risk Assets Card */}

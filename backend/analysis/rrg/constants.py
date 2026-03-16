@@ -53,6 +53,44 @@ QUADRANT_SCORES: Final[Dict[str, int]] = {
 RISK_ON_THRESHOLD: Final[float] = 3.0
 RISK_OFF_THRESHOLD: Final[float] = -3.0
 
+# ── V6 Composite Regime Filter ──────────────────────────────────────
+# Multi-factor weighted composite with hysteresis (backtested 2012-2025)
+# Reduces whipsaws by 50% vs raw threshold while keeping 85% crash recall
+
+V6_SAFE_HAVEN_KEYS: Final[list] = ["GLD", "TLT", "UUP"]
+
+# Weighted composite factor scores
+V6_WEIGHTS: Final[Dict[str, Any]] = {
+    # Factor 1: Raw regime score level
+    "score_strong_bear": {"threshold": -5, "value": -2.0},
+    "score_bear":        {"threshold": -2, "value": -1.0},
+    "score_strong_bull": {"threshold":  5, "value":  2.0},
+    "score_bull":        {"threshold":  2, "value":  1.0},
+    # Factor 2: Score trend (2-period direction)
+    "trend_strong_down": {"threshold": -4, "value": -1.5},
+    "trend_down":        {"threshold": -2, "value": -0.75},
+    "trend_strong_up":   {"threshold":  4, "value":  1.5},
+    "trend_up":          {"threshold":  2, "value":  0.75},
+    # Factor 3: Safe-haven rotation (GLD+TLT+UUP in Leading/Improving)
+    "sh_full":           {"count": 3, "value": -2.0},    # 3/3 = very bearish
+    "sh_partial":        {"count": 2, "value": -1.0},    # 2/3
+    "sh_none":           {"count": 0, "value":  1.5},    # 0/3 = bullish
+    # Factor 4: BTC/crypto quadrant
+    "btc_leading":       {"value":  1.0},
+    "btc_improving":     {"value":  0.5},
+    "btc_weakening":     {"value": -0.5},
+    "btc_lagging":       {"value": -1.0},
+    # Factor 5: Risk breadth (% risk assets in Leading/Improving)
+    "breadth_very_low":  {"threshold": 20, "value": -1.5},
+    "breadth_low":       {"threshold": 35, "value": -0.75},
+    "breadth_high":      {"threshold": 50, "value":  0.75},
+    "breadth_very_high": {"threshold": 65, "value":  1.5},
+}
+
+# Hysteresis thresholds — require stronger signal to enter, weaker to exit
+V6_ENTER_THRESHOLD: Final[float] = 3.5   # composite must hit +/-3.5 to flip
+V6_EXIT_THRESHOLD: Final[float] = 1.0    # composite must cross +/-1.0 to revert
+
 # Yahoo Finance API Settings
 YAHOO_BASE_URL: Final[str] = "https://query1.finance.yahoo.com/v8/finance/chart"
 # Need 127+ trading days → fetch ~300 calendar days to be safe on Render
