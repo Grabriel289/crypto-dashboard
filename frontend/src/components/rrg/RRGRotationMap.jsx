@@ -273,8 +273,9 @@ function RRGRotationMap({ data }) {
   const scaleX = (val) => ((val - minX) / rangeX) * 100;
   const scaleY = (val) => 100 - ((val - minY) / rangeY) * 100;
 
-  // Get regime color
-  const regimeColor = COLORS.regime[regime.regime] || COLORS.regime.neutral;
+  // Get regime color — use V6 filter if available, fallback to raw regime
+  const activeRegime = regime_filter?.regime || regime.regime;
+  const regimeColor = COLORS.regime[activeRegime] || COLORS.regime.neutral;
   
   // Separate action groups
   const buyGroup = action_groups.find(g => g.action === 'buy');
@@ -328,13 +329,13 @@ function RRGRotationMap({ data }) {
             border: `1px solid ${regimeColor}40`,
             borderRadius: '8px'
           }}>
-            <span style={{ fontSize: '20px' }}>{regime.emoji}</span>
-            <span style={{ 
-              fontWeight: 'bold', 
+            <span style={{ fontSize: '20px' }}>{regime_filter?.emoji || regime.emoji}</span>
+            <span style={{
+              fontWeight: 'bold',
               color: regimeColor,
               fontSize: '14px'
             }}>
-              {regime.regime.replace('_', '-').toUpperCase()}
+              {activeRegime?.replace('_', '-').toUpperCase()}
             </span>
           </div>
         )}
@@ -502,7 +503,7 @@ function RRGRotationMap({ data }) {
 
         {/* Right Column - Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '520px' }}>
-          {/* Regime Indicator Card */}
+          {/* Regime Indicator Card — V6 Composite */}
           <div style={{
             background: COLORS.background,
             border: `1px solid ${COLORS.border}`,
@@ -510,42 +511,56 @@ function RRGRotationMap({ data }) {
             padding: '14px',
             flex: '0 0 auto'
           }}>
-            <div style={{ 
-              fontSize: '11px', 
-              color: COLORS.textSecondary,
-              textTransform: 'uppercase',
-              marginBottom: '12px'
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '10px'
             }}>
-              Market Regime
+              <span style={{
+                fontSize: '11px',
+                color: COLORS.textSecondary,
+                textTransform: 'uppercase'
+              }}>
+                Market Regime
+              </span>
+              {regime_filter && (
+                <span style={{
+                  fontSize: '10px',
+                  color: COLORS.textMuted
+                }}>
+                  V6: {regime_filter.composite_score > 0 ? '+' : ''}{regime_filter.composite_score}
+                </span>
+              )}
             </div>
-            
-            {/* Regime Badge */}
+
+            {/* Regime Badge — uses V6 if available */}
             <div style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              padding: '10px 16px',
+              padding: '8px 14px',
               backgroundColor: `${regimeColor}20`,
               border: `1px solid ${regimeColor}40`,
               borderRadius: '6px',
-              marginBottom: '16px'
+              marginBottom: '10px'
             }}>
-              <span style={{ fontSize: '18px' }}>{regime.emoji}</span>
-              <span style={{ 
-                fontWeight: 'bold', 
+              <span style={{ fontSize: '16px' }}>{regime_filter?.emoji || regime.emoji}</span>
+              <span style={{
+                fontWeight: 'bold',
                 color: regimeColor,
                 fontSize: '14px'
               }}>
-                {regime.regime?.replace('_', '-').toUpperCase()}
+                {activeRegime?.replace('_', '-').toUpperCase()}
               </span>
             </div>
 
-            {/* Score Gauge */}
-            <div style={{ marginTop: '12px' }}>
+            {/* Score Gauge — driven by raw score */}
+            <div>
               <div style={{
                 display: 'flex',
                 gap: '4px',
-                marginBottom: '8px'
+                marginBottom: '6px'
               }}>
                 {[0, 1, 2, 3, 4, 5].map((i) => {
                   const isActive = (regime.score + 10) / 20 * 6 > i;
@@ -574,79 +589,21 @@ function RRGRotationMap({ data }) {
                 <span>Neutral</span>
                 <span>Risk-On</span>
               </div>
-              <div style={{
-                fontSize: '11px',
-                color: COLORS.textSecondary,
-                marginTop: '8px'
-              }}>
-                Score: {regime.score} / 10
-              </div>
             </div>
 
-            {/* V6 Composite Regime Filter */}
-            {regime_filter && (
+            {/* V6 Factor breakdown — compact row */}
+            {regime_filter?.factors && (
               <div style={{
-                marginTop: '14px',
-                paddingTop: '14px',
-                borderTop: `1px solid ${COLORS.border}`
+                display: 'flex',
+                gap: '8px',
+                flexWrap: 'wrap',
+                marginTop: '8px',
+                fontSize: '10px',
+                color: COLORS.textMuted
               }}>
-                <div style={{
-                  fontSize: '10px',
-                  color: COLORS.textSecondary,
-                  textTransform: 'uppercase',
-                  marginBottom: '8px',
-                  letterSpacing: '0.5px'
-                }}>
-                  Regime Filter (V6)
-                </div>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '8px'
-                }}>
-                  <div style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '6px 12px',
-                    backgroundColor: `${regime_filter.color}20`,
-                    border: `1px solid ${regime_filter.color}40`,
-                    borderRadius: '6px'
-                  }}>
-                    <span style={{ fontSize: '14px' }}>{regime_filter.emoji}</span>
-                    <span style={{
-                      fontWeight: 'bold',
-                      color: regime_filter.color,
-                      fontSize: '12px'
-                    }}>
-                      {regime_filter.regime?.replace('_', '-').toUpperCase()}
-                    </span>
-                  </div>
-                  <span style={{
-                    fontSize: '11px',
-                    color: COLORS.textSecondary
-                  }}>
-                    {regime_filter.composite_score > 0 ? '+' : ''}{regime_filter.composite_score}
-                  </span>
-                </div>
-                {/* Factor breakdown */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '3px',
-                  fontSize: '10px',
-                  color: COLORS.textMuted
-                }}>
-                  {regime_filter.factors && (
-                    <>
-                      <span>SH Rotation: {regime_filter.factors.safe_haven?.count}/3</span>
-                      <span>Breadth: {regime_filter.factors.risk_breadth?.toFixed(0)}%</span>
-                      <span>Crypto: {regime_filter.factors.crypto_quad || '--'}</span>
-                      <span>Trend: {regime_filter.factors.score_trend > 0 ? '+' : ''}{regime_filter.factors.score_trend}</span>
-                    </>
-                  )}
-                </div>
+                <span>SH {regime_filter.factors.safe_haven?.count}/3</span>
+                <span>Breadth {regime_filter.factors.risk_breadth?.toFixed(0)}%</span>
+                <span>Crypto: {regime_filter.factors.crypto_quad || '--'}</span>
               </div>
             )}
           </div>
