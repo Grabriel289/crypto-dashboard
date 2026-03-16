@@ -239,6 +239,7 @@ class DataScheduler:
             if price_data:
                 results = engine.calculate_all(price_data)
                 regime = engine.detect_regime(results)
+                regime_filter = engine.detect_regime_v6(results, regime)
                 top_picks = engine.get_top_picks(results)
                 action_groups = engine.get_action_groups(results)
                 insights = engine.generate_insights(results, regime)
@@ -267,6 +268,7 @@ class DataScheduler:
                         "risk_summary": regime.risk_summary,
                         "safe_summary": regime.safe_summary
                     },
+                    "regime_filter": regime_filter,
                     "top_picks": top_picks,
                     "action_groups": action_groups,
                     "insights": insights,
