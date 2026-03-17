@@ -93,7 +93,7 @@ async def get_crypto_pulse() -> Dict[str, Any]:
             heatmap = await liquidation_fetcher.get_heatmap("BTCUSDT")
             fragility = heatmap.get('fragility', {})
             fragility['source'] = heatmap.get('source', 'unknown')
-            if heatmap.get('source') == 'binance_live':
+            if heatmap.get('source') in ('binance_live', 'binance_partial'):
                 data_cache.set('fragility', heatmap)
         except Exception as e:
             print(f"[Fragility] Live fetch failed ({e}), using fallback")

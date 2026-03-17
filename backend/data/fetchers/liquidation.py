@@ -222,89 +222,180 @@ class LiquidationFetcher:
     async def get_heatmap(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
         """
         Get complete liquidation heatmap with fragility score.
-        Uses caching to reduce API calls (5 minute TTL).
+
+        Resilient: fetches all data in parallel, calculates each fragility
+        component independently.  Partial data still produces a live score
+        (missing components get neutral defaults instead of full fallback).
         """
-        from analysis.liquidation_heatmap import calculate_complete_heatmap
-        from scoring.fragility import calculate_depth_2pct
-        
+        from scoring.fragility import (
+            calculate_L_d, calculate_F_sigma, calculate_B_z,
+            calculate_depth_2pct
+        )
+        from analysis.liquidation_heatmap import (
+            estimate_liquidation_heatmap, get_major_liquidation_zones,
+            generate_heatmap_insight
+        )
+
         # Check cache first
         cache_key = f"heatmap_{symbol}"
         cached = self._get_cached(cache_key)
         if cached:
             return cached
-        
-        print(f"[Heatmap] Starting fetch for {symbol}...")
-        
-        try:
-            # Fetch all required data
-            oi_data = await self.fetch_open_interest(symbol)
-            print(f"[Heatmap] OI data: {'OK' if oi_data else 'FAILED'}")
-            await asyncio.sleep(0.2)
-            
-            funding_data = await self.fetch_funding_rate(symbol)
-            print(f"[Heatmap] Funding data: {'OK' if funding_data else 'FAILED'}")
-            await asyncio.sleep(0.2)
-            
-            prices = await self.fetch_prices(symbol)
-            print(f"[Heatmap] Prices data: {'OK' if prices else 'FAILED'}")
-            await asyncio.sleep(0.2)
-            
-            depth = await self.fetch_orderbook_depth(symbol)
-            print(f"[Heatmap] Depth data: {'OK' if depth else 'FAILED'}")
-            await asyncio.sleep(0.2)
-            
-            funding_history = await self.fetch_funding_history(symbol)
-            print(f"[Heatmap] Funding history: {'OK' if funding_history else 'FAILED'}")
-            
-            # Check if we have all required data
-            if not all([oi_data, funding_data, prices, depth]):
-                missing = []
-                if not oi_data: missing.append("OI")
-                if not funding_data: missing.append("funding")
-                if not prices: missing.append("prices")
-                if not depth: missing.append("depth")
-                print(f"[Heatmap] Missing data: {missing}")
-                fallback = self._get_fallback_data(symbol)
-                fallback["_debug_missing"] = missing
-                return fallback
-            
-            # Calculate OI in USD
-            oi_usd = oi_data["openInterest"] * prices["perp"]
-            print(f"[Heatmap] OI USD: ${oi_usd/1e9:.2f}B")
-            
-            # Calculate depth within 2%
-            mid_price = (prices["spot"] + prices["perp"]) / 2
-            depth_2pct = calculate_depth_2pct(depth["bids"], depth["asks"], mid_price)
-            print(f"[Heatmap] Depth 2%: ${depth_2pct/1e6:.1f}M")
-            
-            # Calculate complete heatmap
-            result = calculate_complete_heatmap(
-                current_price=prices["perp"],
-                oi_usd=oi_usd,
-                funding_rate=funding_data["lastFundingRate"],
-                depth_2pct=depth_2pct,
-                funding_7d=funding_history if funding_history else [funding_data["lastFundingRate"]] * 7,
-                spot_price=prices["spot"],
-                perp_price=prices["perp"]
-            )
-            
-            result["timestamp"] = datetime.utcnow().isoformat()
-            result["source"] = "binance_live"
-            print(f"[Heatmap] Success! Fragility score: {result.get('fragility', {}).get('score')}")
-            
-            # Cache the result
-            self._set_cached(cache_key, result)
-            return result
-            
-        except Exception as e:
-            print(f"[Heatmap] Error: {e}")
-            import traceback
-            traceback.print_exc()
+
+        print(f"[Heatmap] Starting parallel fetch for {symbol}...")
+
+        # Fetch all 5 data sources in parallel (no sequential waits)
+        oi_data, funding_data, prices, depth, funding_history = await asyncio.gather(
+            self.fetch_open_interest(symbol),
+            self.fetch_funding_rate(symbol),
+            self.fetch_prices(symbol),
+            self.fetch_orderbook_depth(symbol, limit=500),  # 500 instead of 1000 = weight 5 vs 10
+            self.fetch_funding_history(symbol),
+            return_exceptions=True
+        )
+
+        # Treat exceptions as None
+        if isinstance(oi_data, Exception):
+            print(f"[Heatmap] OI exception: {oi_data}")
+            oi_data = None
+        if isinstance(funding_data, Exception):
+            print(f"[Heatmap] Funding exception: {funding_data}")
+            funding_data = None
+        if isinstance(prices, Exception):
+            print(f"[Heatmap] Prices exception: {prices}")
+            prices = None
+        if isinstance(depth, Exception):
+            print(f"[Heatmap] Depth exception: {depth}")
+            depth = None
+        if isinstance(funding_history, Exception):
+            print(f"[Heatmap] Funding history exception: {funding_history}")
+            funding_history = []
+
+        ok = [k for k, v in {"OI": oi_data, "funding": funding_data, "prices": prices, "depth": depth}.items() if v]
+        fail = [k for k, v in {"OI": oi_data, "funding": funding_data, "prices": prices, "depth": depth}.items() if not v]
+        print(f"[Heatmap] OK: {ok}  FAILED: {fail}")
+
+        # We need at least prices OR funding to do anything useful
+        has_price = prices is not None
+        has_funding = funding_data is not None
+
+        if not has_price and not has_funding:
+            print(f"[Heatmap] No price or funding data — full fallback")
             fallback = self._get_fallback_data(symbol)
-            # Cache fallback for shorter time (1 minute) to retry sooner
             fallback["_cache_ttl"] = 60
             self._set_cached(cache_key, fallback)
             return fallback
+
+        # Derive current price from whatever we have
+        if has_price:
+            current_price = prices["perp"]
+            spot_price = prices["spot"]
+        else:
+            current_price = funding_data.get("markPrice", 0)
+            spot_price = current_price  # approximate
+
+        # --- Calculate each fragility component independently ---
+        live_components = []
+
+        # L_d: needs OI + depth + price
+        if oi_data and depth and current_price > 0:
+            oi_usd = oi_data["openInterest"] * current_price
+            mid_price = (spot_price + current_price) / 2
+            depth_2pct = calculate_depth_2pct(depth["bids"], depth["asks"], mid_price)
+            L_d = calculate_L_d(oi_usd, depth_2pct)
+            live_components.append("L_d")
+            print(f"[Heatmap] L_d={L_d:.1f} (OI=${oi_usd/1e9:.2f}B, depth=${depth_2pct/1e6:.1f}M)")
+        elif oi_data and current_price > 0:
+            # Have OI but no depth — estimate L_d from OI alone (moderate assumption)
+            oi_usd = oi_data["openInterest"] * current_price
+            L_d = min(100.0, oi_usd / (200e6 * 10))  # assume ~$200M depth
+            live_components.append("L_d~")
+            print(f"[Heatmap] L_d={L_d:.1f} (estimated, no depth)")
+        else:
+            oi_usd = 0
+            depth_2pct = 0
+            L_d = 50.0  # neutral default
+
+        # F_sigma: needs funding + history
+        if has_funding:
+            funding_rate = funding_data["lastFundingRate"]
+            hist = funding_history if funding_history else [funding_rate] * 7
+            F_sigma = calculate_F_sigma(funding_rate, hist)
+            live_components.append("F_sigma")
+            print(f"[Heatmap] F_sigma={F_sigma:.1f} (rate={funding_rate:.6f})")
+        else:
+            funding_rate = 0.0
+            F_sigma = 50.0  # neutral default
+
+        # B_z: needs spot + perp prices
+        if has_price:
+            B_z = calculate_B_z(spot_price, current_price)
+            live_components.append("B_z")
+            print(f"[Heatmap] B_z={B_z:.1f} (basis={prices.get('basis_pct', 0):.4f}%)")
+        else:
+            B_z = 50.0  # neutral default
+
+        # --- Composite fragility score ---
+        phi = (L_d + F_sigma + B_z) / 3
+
+        if phi <= 25:
+            level, emoji, color = "Stable", "🟢", "#00ff88"
+        elif phi <= 50:
+            level, emoji, color = "Caution", "🟡", "#ffaa00"
+        elif phi <= 75:
+            level, emoji, color = "Fragile", "🟠", "#ff6b35"
+        else:
+            level, emoji, color = "Critical", "🔴", "#ff4444"
+
+        fragility = {
+            "score": round(phi, 1),
+            "level": level,
+            "emoji": emoji,
+            "color": color,
+            "components": {
+                "L_d": {"value": round(L_d, 1), "label": "Liquidation Density"},
+                "F_sigma": {"value": round(F_sigma, 1), "label": "Funding Deviation"},
+                "B_z": {"value": round(B_z, 1), "label": "Basis Tension"}
+            },
+            "live_components": live_components,
+            "formula": "Phi = (L_d + F_sigma + B_z) / 3"
+        }
+
+        # --- Liquidation heatmap (needs OI + funding + price) ---
+        if oi_usd > 0 and current_price > 0:
+            heatmap = estimate_liquidation_heatmap(current_price, oi_usd, funding_rate)
+            major_zones = get_major_liquidation_zones(heatmap, current_price)
+        else:
+            heatmap = {"long_liquidations": {}, "short_liquidations": {},
+                       "total_long_at_risk": 0, "total_short_at_risk": 0,
+                       "data_type": "PARTIAL", "disclaimer": "Insufficient data for liquidation estimates"}
+            major_zones = []
+
+        # --- Insight ---
+        insight = generate_heatmap_insight(phi, heatmap, current_price) if current_price > 0 else {
+            "emoji": emoji, "summary": f"{level}: Partial data", "details": [], "recommendation": "Check API connectivity"
+        }
+
+        # Mark source based on how many components are live
+        source = "binance_live" if len(live_components) >= 2 else "binance_partial"
+
+        result = {
+            "symbol": symbol,
+            "current_price": current_price,
+            "timestamp": datetime.utcnow().isoformat(),
+            "source": source,
+            "fragility": fragility,
+            "estimated_liquidations": heatmap,
+            "major_zones": major_zones[:5],
+            "insight": insight
+        }
+
+        print(f"[Heatmap] Done! score={phi:.1f} ({level}), source={source}, live={live_components}")
+
+        # Cache: 5min for live, 2min for partial
+        ttl = 300 if source == "binance_live" else 120
+        self._set_cached(cache_key, result, ttl=ttl)
+        return result
     
     def _get_fallback_data(self, symbol: str = "BTCUSDT") -> Dict[str, Any]:
         """Get estimated data when live data fails."""

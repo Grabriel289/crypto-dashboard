@@ -95,10 +95,10 @@ class DataScheduler:
             replace_existing=True
         )
         
-        # Market Fragility (OI, Funding, Depth) - every 1 hour (to avoid rate limits)
+        # Market Fragility (OI, Funding, Depth) - every 30 min (parallel fetch reduces rate limit impact)
         self.scheduler.add_job(
             self._update_fragility,
-            IntervalTrigger(hours=1),
+            IntervalTrigger(minutes=30),
             id='fragility_update',
             replace_existing=True
         )
@@ -187,13 +187,12 @@ class DataScheduler:
             source = heatmap.get('source', 'unknown') if heatmap else 'none'
             frag_score = heatmap.get('fragility', {}).get('score', 'N/A') if heatmap else 'N/A'
 
-            if heatmap and source == 'binance_live':
-                # Only cache confirmed live data — never cache fallback values
+            if heatmap and source in ('binance_live', 'binance_partial'):
+                # Cache live or partial data (partial is still better than hardcoded fallback)
                 data_cache.set('fragility', heatmap)
                 print(f"[{datetime.now()}] Fragility cached: score={frag_score}, source={source}")
             else:
-                # Fallback was returned (cold-start network issue, rate limit, etc.)
-                # Do NOT write to data_cache so the API endpoint will do its own live fetch
+                # Full fallback — do NOT cache so API endpoint retries on next request
                 print(f"[{datetime.now()}] Fragility got fallback (source={source}), skipping cache")
         except Exception as e:
             print(f"[{datetime.now()}] Error updating fragility: {e}")
