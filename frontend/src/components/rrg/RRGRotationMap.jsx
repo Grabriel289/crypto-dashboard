@@ -518,7 +518,8 @@ function RRGRotationMap({ data }) {
               marginBottom: '10px'
             }}>
               <span style={{
-                fontSize: '11px',
+                fontSize: '13px',
+                fontWeight: 600,
                 color: COLORS.textSecondary,
                 textTransform: 'uppercase'
               }}>
@@ -526,7 +527,7 @@ function RRGRotationMap({ data }) {
               </span>
               {regime_filter && (
                 <span style={{
-                  fontSize: '10px',
+                  fontSize: '12px',
                   color: COLORS.textMuted
                 }}>
                   V6: {regime_filter.composite_score > 0 ? '+' : ''}{regime_filter.composite_score}
@@ -545,11 +546,11 @@ function RRGRotationMap({ data }) {
               borderRadius: '6px',
               marginBottom: '10px'
             }}>
-              <span style={{ fontSize: '16px' }}>{regime_filter?.emoji || regime.emoji}</span>
+              <span style={{ fontSize: '20px' }}>{regime_filter?.emoji || regime.emoji}</span>
               <span style={{
                 fontWeight: 'bold',
                 color: regimeColor,
-                fontSize: '14px'
+                fontSize: '16px'
               }}>
                 {activeRegime?.replace('_', '-').toUpperCase()}
               </span>
@@ -570,7 +571,7 @@ function RRGRotationMap({ data }) {
                       key={i}
                       style={{
                         flex: 1,
-                        height: '8px',
+                        height: '10px',
                         backgroundColor: isActive ? segmentColors[i] : `${COLORS.border}`,
                         borderRadius: '2px',
                         boxShadow: isActive ? `0 0 6px ${segmentColors[i]}` : 'none'
@@ -582,7 +583,7 @@ function RRGRotationMap({ data }) {
               <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
-                fontSize: '9px',
+                fontSize: '11px',
                 color: COLORS.textMuted
               }}>
                 <span>Risk-Off</span>
@@ -598,7 +599,7 @@ function RRGRotationMap({ data }) {
                 gap: '8px',
                 flexWrap: 'wrap',
                 marginTop: '8px',
-                fontSize: '10px',
+                fontSize: '12px',
                 color: COLORS.textMuted
               }}>
                 <span>SH {regime_filter.factors.safe_haven?.count}/3</span>
