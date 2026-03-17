@@ -1,4 +1,4 @@
-"""Binance / OKX kline fetcher for Altcoin Breadth Momentum universe."""
+"""Binance kline fetcher for Altcoin Breadth Momentum universe."""
 import aiohttp
 import asyncio
 from typing import Dict, List, Optional, Tuple
@@ -14,7 +14,7 @@ class ABMDataFetcher:
     """
     Fetches daily close prices for the 50-altcoin ABM universe + BTC.
 
-    Exchange priority: Binance first, OKX fallback.
+    Exchange priority: Binance → Bybit → KuCoin.
     Results are cached for CACHE_TTL seconds (30 min).
     """
 
@@ -159,7 +159,7 @@ class ABMDataFetcher:
     # ------------------------------------------------------------------
 
     async def _fetch_coin(self, coin: str, mapping: Dict) -> Optional[List[Dict]]:
-        """Fetch klines for one coin, trying Binance → OKX → Bybit → KuCoin."""
+        """Fetch klines for one coin, trying Binance → Bybit → KuCoin."""
         cache_key = coin
         if cache_key in self._cache:
             ts, cached = self._cache[cache_key]
@@ -170,14 +170,6 @@ class ABMDataFetcher:
         binance_sym = mapping.get("binance")
         if binance_sym:
             result = await self._fetch_binance_klines(binance_sym)
-            if result and len(result) >= 30:
-                self._cache[cache_key] = (datetime.now(), result)
-                return result
-
-        # Fallback to OKX
-        okx_sym = mapping.get("okx")
-        if okx_sym:
-            result = await self._fetch_okx_klines(okx_sym)
             if result and len(result) >= 30:
                 self._cache[cache_key] = (datetime.now(), result)
                 return result

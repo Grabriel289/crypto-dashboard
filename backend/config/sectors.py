@@ -142,4 +142,4 @@ SYMBOL_MAPPING = {
 }
 
 # Priority order for exchanges
-EXCHANGE_PRIORITY = ["binance", "okx", "kucoin", "coinbase"]
+EXCHANGE_PRIORITY = ["binance", "kucoin", "coinbase"]

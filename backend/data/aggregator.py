@@ -5,7 +5,6 @@ import asyncio
 
 from config.sectors import SYMBOL_MAPPING, EXCHANGE_PRIORITY
 from data.fetchers.binance import binance_fetcher
-from data.fetchers.okx import okx_fetcher
 from data.fetchers.kucoin import kucoin_fetcher
 
 
@@ -38,8 +37,8 @@ class DataAggregator:
                 result = None
                 if exchange == "binance":
                     result = await binance_fetcher.fetch_price(symbol)
-                elif exchange == "okx":
-                    result = await okx_fetcher.fetch_price(symbol)
+                elif exchange == "kucoin":
+                    result = await kucoin_fetcher.fetch_price(symbol)
                 
                 if result:
                     result["coin"] = coin
@@ -193,14 +192,6 @@ class DataAggregator:
         binance_symbol = SYMBOL_MAPPING.get("binance", {}).get(coin)
         if binance_symbol:
             ret = await binance_fetcher.fetch_nd_return(binance_symbol, days=days)
-            if ret is not None:
-                return ret
-
-        # Fallback to OKX
-        okx_symbol = SYMBOL_MAPPING.get("okx", {}).get(coin)
-        if okx_symbol:
-            from data.fetchers.okx import okx_fetcher
-            ret = await okx_fetcher.fetch_nd_return(okx_symbol, days=days)
             if ret is not None:
                 return ret
 
