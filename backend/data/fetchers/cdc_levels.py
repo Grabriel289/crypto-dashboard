@@ -141,46 +141,75 @@ class CDCFetcher:
         }
     
     def calculate_ob_levels(self, obs: Dict[str, Any], current_price: float, symbol: str) -> Dict[str, Any]:
-        """Calculate S/R levels from Order Blocks."""
+        """Calculate S/R levels from Order Blocks.
+
+        Resistance uses OB bottom (where price first meets the block from below).
+        Support uses OB top (where price first meets the block from above).
+        Always returns dicts with a 'price' key for consistent access.
+        """
         supports = obs.get("supports", [])
         resistances = obs.get("resistances", [])
-        
-        # Filter OBs below/above current price and sort by distance
+
+        # Filter OBs strictly below/above current price and within 30 days
         valid_supports = [ob for ob in supports if ob["top"] < current_price and ob["age"] <= 30]
         valid_resistances = [ob for ob in resistances if ob["bottom"] > current_price and ob["age"] <= 30]
-        
+
         # Sort by proximity to current price
         valid_supports.sort(key=lambda x: x["top"], reverse=True)  # Highest first (closest)
         valid_resistances.sort(key=lambda x: x["bottom"])  # Lowest first (closest)
-        
-        # Take top 2 of each
-        top_supports = valid_supports[:2]
-        top_resistances = valid_resistances[:2]
-        
-        # If not enough OBs, use fallback
-        has_resistance = len(top_resistances) >= 1
-        has_support = len(top_supports) >= 1
-        
-        if not has_resistance or not has_support:
-            fallback = self.get_fallback_levels(current_price, symbol)
+
+        fallback = self.get_fallback_levels(current_price, symbol)
+
+        # Build resistance levels (R1 closest, R2 further)
+        if len(valid_resistances) >= 2:
+            r1 = {"price": int(valid_resistances[0]["bottom"]), "zone": [valid_resistances[0]["bottom"], valid_resistances[0]["top"]]}
+            r2 = {"price": int(valid_resistances[1]["bottom"]), "zone": [valid_resistances[1]["bottom"], valid_resistances[1]["top"]]}
+        elif len(valid_resistances) == 1:
+            r1 = {"price": int(valid_resistances[0]["bottom"]), "zone": [valid_resistances[0]["bottom"], valid_resistances[0]["top"]]}
+            r2 = fallback["R2"]
         else:
-            fallback = {"R1": None, "R2": None, "S1": None, "S2": None, "isFallback": False}
-        
-        return {
-            "R1": top_resistances[0] if len(top_resistances) > 0 else fallback["R1"],
-            "R2": top_resistances[1] if len(top_resistances) > 1 else (fallback["R2"] if not top_resistances else {"price": int(top_resistances[0]["bottom"] * 1.03), "zone": None}),
-            "S1": top_supports[0] if len(top_supports) > 0 else fallback["S1"],
-            "S2": top_supports[1] if len(top_supports) > 1 else (fallback["S2"] if not top_supports else {"price": int(top_supports[0]["top"] * 0.97), "zone": None}),
-            "isFallback": fallback.get("isFallback", False)
-        }
+            r1 = fallback["R1"]
+            r2 = fallback["R2"]
+
+        # Build support levels (S1 closest, S2 further)
+        if len(valid_supports) >= 2:
+            s1 = {"price": int(valid_supports[0]["top"]), "zone": [valid_supports[0]["bottom"], valid_supports[0]["top"]]}
+            s2 = {"price": int(valid_supports[1]["top"]), "zone": [valid_supports[1]["bottom"], valid_supports[1]["top"]]}
+        elif len(valid_supports) == 1:
+            s1 = {"price": int(valid_supports[0]["top"]), "zone": [valid_supports[0]["bottom"], valid_supports[0]["top"]]}
+            s2 = fallback["S2"]
+        else:
+            s1 = fallback["S1"]
+            s2 = fallback["S2"]
+
+        is_fallback = len(valid_resistances) == 0 and len(valid_supports) == 0
+
+        # Validate: R1 < R2 (R1 closer to price), S1 > S2 (S1 closer to price)
+        r1_price = r1["price"] if isinstance(r1, dict) else r1
+        r2_price = r2["price"] if isinstance(r2, dict) else r2
+        s1_price = s1["price"] if isinstance(s1, dict) else s1
+        s2_price = s2["price"] if isinstance(s2, dict) else s2
+
+        if r1_price > r2_price:
+            r1, r2 = r2, r1
+        if s1_price < s2_price:
+            s1, s2 = s2, s1
+
+        return {"R1": r1, "R2": r2, "S1": s1, "S2": s2, "isFallback": is_fallback}
     
-    async def get_ath(self, symbol: str) -> float:
-        """Get all-time high for a symbol."""
+    async def get_ath(self, symbol: str, candles: List[Dict] = None) -> float:
+        """Get all-time high from candle data or known ATH."""
+        # Known ATH values (updated periodically)
         ath_map = {
-            "BTCUSDT": 73800,
+            "BTCUSDT": 109588,
             "ETHUSDT": 4878
         }
-        return ath_map.get(symbol, 0)
+        known_ath = ath_map.get(symbol, 0)
+        # If we have candle data, check if any high exceeds known ATH
+        if candles:
+            candle_high = max(c["high"] for c in candles)
+            return max(known_ath, candle_high)
+        return known_ath
     
     async def get_cdc_data(self, symbol: str) -> Dict[str, Any]:
         """Get complete CDC data with Order Block levels."""
@@ -209,7 +238,7 @@ class CDCFetcher:
         close_prices = [c["close"] for c in candles]
         
         # Get ATH
-        ath = await self.get_ath(symbol)
+        ath = await self.get_ath(symbol, candles)
         ath_distance = ((current_price - ath) / ath * 100) if ath else 0
         
         # Calculate CDC signal
@@ -260,8 +289,8 @@ class CDCFetcher:
                 "s2": int(base_price * 0.94),
                 "source": "fallback"
             },
-            "ath": 73800 if symbol == "BTCUSDT" else 4878,
-            "ath_distance": -7.8 if symbol == "BTCUSDT" else -59.4
+            "ath": 109588 if symbol == "BTCUSDT" else 4878,
+            "ath_distance": -36.0 if symbol == "BTCUSDT" else -59.4
         }
 
 
