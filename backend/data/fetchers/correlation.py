@@ -371,11 +371,15 @@ class CorrelationFetcher:
     
     async def get_paxg_btc(self) -> Dict[str, Any]:
         """Get PAXG/BTC ratio data."""
-        ticker, klines = await asyncio.gather(
-            self.get_ticker("PAXGBTC"),
-            self.get_klines("PAXGBTC", limit=30)
-        )
-        
+        try:
+            ticker, klines = await asyncio.gather(
+                self.get_ticker("PAXGBTC"),
+                self.get_klines("PAXGBTC", limit=30)
+            )
+        except Exception as e:
+            print(f"Error fetching PAXG/BTC data: {e}")
+            return self._get_fallback_paxg_btc()
+
         if not klines:
             return self._get_fallback_paxg_btc()
         
@@ -434,16 +438,17 @@ class CorrelationFetcher:
     def _get_fallback_paxg_btc(self) -> Dict[str, Any]:
         """Fallback PAXG/BTC data."""
         return {
-            "current_ratio": 0.07234,
-            "change_24h": 1.25,
-            "change_7d": 3.42,
-            "change_30d": 8.15,
-            "chart_data": [0.066, 0.067, 0.068, 0.069, 0.070, 0.071, 0.072],
+            "current_ratio": 0.0,
+            "change_24h": 0.0,
+            "change_7d": 0.0,
+            "change_30d": 0.0,
+            "chart_data": [],
             "trend": {
-                "signal": "GOLD OUTPERFORMING BTC",
-                "emoji": "🟡",
-                "bitgold": "[S] Consider defensive allocation"
-            }
+                "signal": "DATA UNAVAILABLE",
+                "emoji": "⚪",
+                "bitgold": "Unable to fetch live PAXG/BTC data"
+            },
+            "is_fallback": True
         }
 
 

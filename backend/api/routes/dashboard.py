@@ -376,8 +376,16 @@ async def get_economic_calendar() -> Dict[str, Any]:
 @router.get("/correlation-matrix")
 async def get_correlation_matrix() -> Dict[str, Any]:
     """Get Correlation Matrix & PAXG/BTC data."""
-    correlations = await correlation_fetcher.get_correlations()
-    paxg_btc = await correlation_fetcher.get_paxg_btc()
+    try:
+        correlations = await correlation_fetcher.get_correlations()
+    except Exception as e:
+        print(f"Error fetching correlations: {e}")
+        correlations = correlation_fetcher._get_fallback_correlations()
+    try:
+        paxg_btc = await correlation_fetcher.get_paxg_btc()
+    except Exception as e:
+        print(f"Error fetching PAXG/BTC: {e}")
+        paxg_btc = correlation_fetcher._get_fallback_paxg_btc()
     return {
         "correlations": correlations,
         "paxg_btc": paxg_btc,
