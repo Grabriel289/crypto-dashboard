@@ -1,5 +1,6 @@
 """Real BTC ETF flow tracker using Yahoo Finance AUM data."""
 import aiohttp
+from data.utils.http_session import create_session
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 import json
@@ -39,7 +40,7 @@ class FarsideScraper:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            self.session = create_session()
         return self.session
 
     async def close(self):

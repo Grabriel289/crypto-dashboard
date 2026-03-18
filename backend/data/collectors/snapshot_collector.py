@@ -1,6 +1,7 @@
 """Snapshot Collector - Periodic market data collection."""
 import asyncio
 import aiohttp
+from data.utils.http_session import create_session
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import threading
@@ -26,7 +27,7 @@ class SnapshotCollector:
     async def _fetch_data(self, symbol: str) -> Optional[Dict[str, Any]]:
         """Fetch all data for a symbol from Binance."""
         try:
-            async with aiohttp.ClientSession() as session:
+            async with create_session() as session:
                 # Open Interest
                 oi_resp = await session.get(
                     f"{self.BINANCE_FUTURES}/fapi/v1/openInterest",

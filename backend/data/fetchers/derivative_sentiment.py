@@ -1,5 +1,6 @@
 """Derivative Sentiment fetcher using CoinGlass scraper + Binance Futures API with rate limiting."""
 import aiohttp
+from data.utils.http_session import create_session
 from typing import Dict, Any, List
 import asyncio
 import os
@@ -28,7 +29,7 @@ class DerivativeSentimentFetcher:
         if self._session is None or self._session.closed:
             async with self._session_lock:
                 if self._session is None or self._session.closed:
-                    self._session = aiohttp.ClientSession()
+                    self._session = create_session()
         return self._session
     
     async def close(self):

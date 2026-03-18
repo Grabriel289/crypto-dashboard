@@ -1,5 +1,6 @@
 """Yahoo Finance data fetcher for macro indicators."""
 import aiohttp
+from data.utils.http_session import create_session
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
@@ -21,7 +22,7 @@ class YahooFinanceFetcher:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, params=params, headers=headers, timeout=30) as response:
                     if response.status != 200:

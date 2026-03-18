@@ -1,5 +1,6 @@
 """CDC Signal and Order Block Level fetcher."""
 import aiohttp
+from data.utils.http_session import create_session
 from typing import Dict, Any, List, Optional
 import asyncio
 
@@ -14,7 +15,7 @@ class CDCFetcher:
         url = f"{self.BINANCE_BASE}/api/v3/klines"
         params = {"symbol": symbol, "interval": interval, "limit": limit}
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             async with session.get(url, params=params) as resp:
                 if resp.status == 200:
                     return await resp.json()
@@ -25,7 +26,7 @@ class CDCFetcher:
         url = f"{self.BINANCE_BASE}/api/v3/ticker/24hr"
         params = {"symbol": symbol}
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             async with session.get(url, params=params) as resp:
                 if resp.status == 200:
                     return await resp.json()

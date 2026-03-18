@@ -1,5 +1,6 @@
 """KuCoin data fetcher - fallback for altcoins not on Binance/OKX."""
 import aiohttp
+from data.utils.http_session import create_session
 import pandas as pd
 from typing import Optional, Dict, Any
 from datetime import datetime
@@ -16,7 +17,7 @@ class KuCoinFetcher:
         url = f"{KUCOIN_URL}/api/v1/market/stats"
         params = {"symbol": symbol}
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, params=params, timeout=30) as response:
                     if response.status != 200:
@@ -71,7 +72,7 @@ class KuCoinFetcher:
             "endAt": end_at
         }
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, params=params, timeout=30) as response:
                     if response.status != 200:

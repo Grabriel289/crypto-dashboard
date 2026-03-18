@@ -1,5 +1,6 @@
 """Fear & Greed Index fetcher."""
 import aiohttp
+from data.utils.http_session import create_session
 from typing import Optional, Dict, Any
 from datetime import datetime
 
@@ -14,7 +15,7 @@ class FearGreedFetcher:
         """Fetch current Fear & Greed data."""
         url = f"{FEAR_GREED_URL}?limit=1"
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:

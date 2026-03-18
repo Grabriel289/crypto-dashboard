@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 
 from .constants import ETF_SYMBOLS, YAHOO_BASE_URL, HISTORY_DAYS, LONG_PERIOD
+from data.utils.http_session import create_session
 
 
 class RRGDataFetcher:
@@ -17,7 +18,7 @@ class RRGDataFetcher:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self.session is None or self.session.closed:
-            self.session = aiohttp.ClientSession()
+            self.session = create_session()
         return self.session
 
     async def close(self):

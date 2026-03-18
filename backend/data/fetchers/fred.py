@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import os
 
 from config.settings import settings
+from data.utils.http_session import create_session
 
 
 FRED_URL = "https://api.stlouisfed.org/fred"
@@ -28,7 +29,7 @@ class FREDFetcher:
         if self.api_key:
             params["api_key"] = self.api_key
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, params=params, timeout=30) as response:
                     if response.status != 200:

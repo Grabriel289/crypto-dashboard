@@ -5,6 +5,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 from data.utils.rate_limiter import binance_rate_limiter
+from data.utils.http_session import create_session
 
 
 class LiquidationFetcher:
@@ -39,7 +40,7 @@ class LiquidationFetcher:
         if self.session is None or self.session.closed:
             async with self._session_lock:
                 if self.session is None or self.session.closed:
-                    self.session = aiohttp.ClientSession()
+                    self.session = create_session()
         return self.session
     
     async def close(self):

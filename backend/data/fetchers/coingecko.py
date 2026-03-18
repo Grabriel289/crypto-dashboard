@@ -1,5 +1,6 @@
 """CoinGecko data fetcher - for coins not on major exchanges."""
 import aiohttp
+from data.utils.http_session import create_session
 import asyncio
 from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
@@ -78,7 +79,7 @@ class CoinGeckoFetcher:
             "include_24hr_vol": "true"
         }
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, params=params, timeout=30) as response:
                     if response.status == 429:
@@ -137,7 +138,7 @@ class CoinGeckoFetcher:
             "interval": "daily"
         }
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, params=params, timeout=30) as response:
                     if response.status == 429:

@@ -5,6 +5,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 
 from data.utils.rate_limiter import binance_rate_limiter
+from data.utils.http_session import create_session
 
 
 BINANCE_SPOT_URL = "https://api.binance.com"
@@ -18,7 +19,7 @@ class BinanceFetcher:
         """Fetch 24h price data from Binance spot."""
         url = f"{BINANCE_SPOT_URL}/api/v3/ticker/24hr?symbol={symbol}"
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:
@@ -40,7 +41,7 @@ class BinanceFetcher:
         """Fetch OHLCV data."""
         url = f"{BINANCE_SPOT_URL}/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
         
-        async with aiohttp.ClientSession() as session:
+        async with create_session() as session:
             try:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:
@@ -101,7 +102,7 @@ class BinanceFetcher:
         """Fetch current funding rate with rate limiting."""
         async def _do_fetch():
             url = f"{BINANCE_FUTURES_URL}/fapi/v1/fundingRate?symbol={symbol}&limit=1"
-            async with aiohttp.ClientSession() as session:
+            async with create_session() as session:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:
                         if response.status == 429:
@@ -130,7 +131,7 @@ class BinanceFetcher:
         """Fetch open interest with rate limiting."""
         async def _do_fetch():
             url = f"{BINANCE_FUTURES_URL}/fapi/v1/openInterest?symbol={symbol}"
-            async with aiohttp.ClientSession() as session:
+            async with create_session() as session:
                 async with session.get(url, timeout=30) as response:
                     if response.status != 200:
                         if response.status == 429:

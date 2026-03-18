@@ -1,5 +1,6 @@
 """Stablecoin Flow Monitor fetcher."""
 import aiohttp
+from data.utils.http_session import create_session
 from typing import Dict, Any, List
 
 
@@ -13,7 +14,7 @@ class StablecoinFetcher:
         url = f"{self.DEFILLAMA_API}/stablecoins?includePrices=true"
         
         try:
-            async with aiohttp.ClientSession() as session:
+            async with create_session() as session:
                 async with session.get(url) as resp:
                     if resp.status == 200:
                         data = await resp.json()
