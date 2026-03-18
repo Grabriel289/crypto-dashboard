@@ -127,12 +127,6 @@ function App() {
             </ErrorBoundary>
           </section>
 
-          <section className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
-            <ErrorBoundary name="Correlation Matrix">
-              <CorrelationMatrix data={data?.correlation} />
-            </ErrorBoundary>
-          </section>
-
           <section className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
             <ErrorBoundary name="Macro Tide">
               <MacroTide data={data?.macro} />
